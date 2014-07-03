@@ -1,0 +1,33 @@
+#------------------------------------------------------------*- makefile -*-
+# Base GIT repositories
+# (you can change this if you fork code; you should be able to specify
+# a branch e.g. GIT_<PROJECT>=<URL> -b <BRANCH>)
+#---------------------------------------------------------------------------
+
+#--------------------------------------------------
+# Repositories from IoT-LAB github
+#--------------------------------------------------
+
+GIT_IOTLAB=https://github.com/iot-lab/iot-lab.git -b master
+GIT_IOTLAB_CLITOOLS=https://github.com/iot-lab/cli-tools.git
+GIT_IOTLAB_OPENLAB=https://github.com/iot-lab/openlab.git
+GIT_IOTLAB_CONTIKI=https://github.com/iot-lab/contiki.git
+GIT_IOTLAB_WSN430=https://github.com/iot-lab/wsn430.git
+
+#--------------------------------------------------
+# Repositories from Riot-OS
+#--------------------------------------------------
+
+GIT_RIOT=https://github.com/RIOT-OS/RIOT.git
+GIT_RIOT_BOARD=https://github.com/RIOT-OS/thirdparty_boards.git
+GIT_RIOT_CPU=https://github.com/RIOT-OS/thirdparty_cpu.git
+
+#--------------------------------------------------
+# Repositories from foren6
+#--------------------------------------------------
+
+GIT_FOREN6=https://github.com/cetic/foren6.git
+#GIT_FOREN6=https://github.com/adjih/foren6 -b no-crc
+
+#---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
