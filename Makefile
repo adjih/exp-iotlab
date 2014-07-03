@@ -9,6 +9,8 @@
 # All repositories variables are set in:
 include Makefile.defs
 
+default: help
+
 #===========================================================================
 #===========================================================================
 # Tools
@@ -85,7 +87,7 @@ iot-lab/Makefile:
 	git clone ${GIT_IOTLAB}
 
 
-ensure-cli-tools: iot-lab/parts/cli-tools
+ensure-cli-tools: ensure-pkg-python-requests iot-lab/parts/cli-tools
 
 iot-lab/parts/cli-tools: # <- no deps (is intended)
 	make ensure-iot-lab # ^^^^^^^
@@ -170,7 +172,7 @@ local/src/local.profile: Makefile
 #===========================================================================
 #===========================================================================
 
-
+#ensure-openwsn:
 
 #===========================================================================
 #===========================================================================
@@ -299,9 +301,14 @@ ensure-pkg-libexpat1-dev: /usr/include/expat.h
 ensure-pkg-libqt4-dev: /usr/include/qt4/Qt/QtGui
 /usr/include/qt4/Qt/QtGui: ; make install-ubuntu-pkg PKGNAME='libqt4-dev'
 
+ensure-pkg-python-requests: /usr/share/doc/python-requests/copyright
+/usr/share/doc/python-requests/copyright: ; make install-ubuntu-pkg PKGNAME='python-requests'
+
 #-- all:
 
-PKGLIST=cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev libqt4-dev
+PKGLIST=cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev libqt4-dev \
+        python-requests
+
 install-all-ubuntu-pkg:
 	make install-ubuntu-pkg PKGNAME="${PKGLIST}"
 
@@ -313,3 +320,19 @@ install-ubuntu-pkg:
 	sudo apt-get install ${PKGNAME}
 
 #---------------------------------------------------------------------------
+
+#===========================================================================
+#===========================================================================
+# Running
+#===========================================================================
+#===========================================================================
+
+ensure-auth-info: ${HOME}/.iotlabrc
+
+${HOME}/.iotlabrc:
+	@if [ "$${IOTLAB_USER}" = "" ] ; then \
+   echo "use: make ensure-auth-info IOTLAB_USER=<IoT-LAB username>"; \
+   echo "or use: ./iotlab/parts/cli-tools/auth-cli -u <IoT-LAB username>"; \
+           exit 1 ; \
+        fi
+	${CURDIR}/iot-lab/parts/cli-tools/auth-cli -u ${IOTLAB_USER}
