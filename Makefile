@@ -171,14 +171,65 @@ local/src/local.profile: Makefile
 # OpenWSN
 #===========================================================================
 #===========================================================================
+# See also: https://openwsn.atlassian.net/wiki/display/OW/Kickstart+Linux
 
-#ensure-openwsn:
+USE_OPENWSN_DEFS=. ${CURDIR}/openwsn/openwsn.defs \
+        && . ${CURDIR}/local/src/local.profile
+
+ensure-openwsn: openwsn 
+
+openwsn/openwsn.defs: Makefile
+	(echo "# Automagically generated" ; \
+	echo "true" ) > $@
+
+openwsn:
+	mkdir openwsn
+
+openwsn/openwsn-fw:
+	make openwsn
+	git clone ${GIT_OPENWSN_FW} openwsn/openwsn-fw
+
+openwsn/openwsn-sw:
+	make openwsn
+	git clone ${GIT_OPENWSN_SW} openwsn/openwsn-sw
+
+openwsn/coap:
+	make openwsn
+	git clone ${GIT_OPENWSN_COAP} openwsn/coap
+
+
+ensure-all-openwsn: openwsn openwsn/openwsn-fw openwsn/openwsn-sw \
+        openwsn/coap openwsn/openwsn.defs
+
+ensure-openwsn-deps: ensure-all-openwsn ensure-gcc-arm \
+            ensure-local-profile ensure-pkg-scons ensure-pkg-python-dev \
+            ensure-pkg-python-pip ensure-pkg-python-bottle \
+	    ensure-pip-PyDispatcher
+
+build-all-openwsn: build-openwsn-m3 build-openwsn-a8-m3 build-openwsn-sim
+
+build-openwsn-sim: ensure-openwsn-deps
+	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
+        && scons board=python toolchain=gcc oos_openwsn
+
+OPENWSN_SIM_OBJ=openwsn/openwsn-fw/firmware/openos/projects/common/oos_openwsn.so
+ensure-openwsn-sim: ${OPENWSN_SIM_OBJ}
+${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
+
+#firmware/openos/projects/common/oos_openwsn.so
+
+build-openwsn-m3: ensure-openwsn-deps
+
+build-openwsn-a8-m3: ensure-openwsn-deps
 
 #===========================================================================
 #===========================================================================
 # RIOT-OS
 #===========================================================================
 #===========================================================================
+
+USE_RIOT_DEFS=. ${CURDIR}/riot/riot.defs \
+        && . ${CURDIR}/local/src/local.profile
 
 ensure-riot: riot riot/RIOT riot/riot.defs
 
@@ -211,9 +262,19 @@ riot/thirdparty_cpu:
 ensure-all-riot: ensure-riot ensure-riot-board ensure-riot-cpu
 
 build-riot-helloworld: ensure-all-riot ensure-gcc-arm ensure-local-profile
-	. ${CURDIR}/riot/riot.defs \
-        && . ${CURDIR}/local/src/local.profile \
-        && cd riot/RIOT/examples/hello-world && make
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make
+
+build-riot-rpl-udp: ensure-all-riot ensure-gcc-arm ensure-local-profile
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
+
+
+#===========================================================================
+#===========================================================================
+# Contiki
+#===========================================================================
+#===========================================================================
+
+
 
 #===========================================================================
 #===========================================================================
@@ -247,15 +308,24 @@ BIN_SNIFFER_FOREN6_A8_M3=iot-lab/parts/openlab/build.a8-m3/bin/foren6_sniffer.el
 
 ensure-sniffer-foren6: ${BIN_SNIFFER_FOREN6_M3} ${BIN_SNIFFER_FOREN6_A8_M3}
 
-${BIN_SNIFFER_FOREN6_M3}:
+build-sniffer-foren6:
+	make build-sniffer-foren6-m3 build-sniffer-foren6-a8-m3
+
+${BIN_SNIFFER_FOREN6_M3}: ; make build-sniffer-foren6-m3
+
+${BIN_SNIFFER_FOREN6_A8_M3}: ; make build-sniffer-foren6-a8-m3
+
+build-sniffer-foren6-m3:
 	make ensure-openlab-prepare ensure-gcc-arm
 	cd iot-lab/parts/openlab/build.m3 \
         && PATH=${GCCARMDIR}:${PATH} make foren6_sniffer
 
-${BIN_SNIFFER_FOREN6_A8_M3}:
+build-sniffer-foren6-a8-m3:
 	make ensure-openlab-prepare ensure-gcc-arm
 	cd iot-lab/parts/openlab/build.a8-m3 \
         && PATH=${GCCARMDIR}:${PATH} make foren6_sniffer
+
+#--------------------------------------------------
 
 #===========================================================================
 #===========================================================================
@@ -301,16 +371,26 @@ ensure-pkg-libexpat1-dev: /usr/include/expat.h
 ensure-pkg-libqt4-dev: /usr/include/qt4/Qt/QtGui
 /usr/include/qt4/Qt/QtGui: ; make install-ubuntu-pkg PKGNAME='libqt4-dev'
 
+# XXX NO?:
 ensure-pkg-python-requests: /usr/share/doc/python-requests/copyright
 /usr/share/doc/python-requests/copyright: ; make install-ubuntu-pkg PKGNAME='python-requests'
 
-#-- all:
+ensure-pkg-scons: /usr/bin/scons
+/usr/bin/scons: ; make install-ubuntu-pkg PKGNAME='scons'
 
-PKGLIST=cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev libqt4-dev \
-        python-requests
+ensure-pkg-python-dev: /usr/bin/python-config
+/usr/bin/python-config: ; make install-ubuntu-pkg PKGNAME='python-dev'
 
-install-all-ubuntu-pkg:
-	make install-ubuntu-pkg PKGNAME="${PKGLIST}"
+ensure-pkg-python-pip: /usr/bin/pip
+/usr/bin/pip: ; make install-ubuntu-pkg PKGNAME='python-pip'
+
+ensure-pkg-python-bottle: /usr/share/doc/python-bottle/copyright
+/usr/share/doc/python-bottle/copyright:
+	make install-ubuntu-pkg PKGNAME='python-bottle'
+
+ensure-pip-PyDispatcher: PyDispatcher
+PyDispatcher: ; make install-pip-pkg PKGNAME='PyDispatcher'
+
 
 #--------------------------------------------------
 
@@ -319,7 +399,37 @@ install-ubuntu-pkg:
              && read ENTER
 	sudo apt-get install ${PKGNAME}
 
+install-pip-pkg:
+	@printf "Doing 'sudo pip install ${PKGNAME}' [Ctrl-C to cancel]: " \
+             && read ENTER
+	sudo pip install ${PKGNAME}
+
 #---------------------------------------------------------------------------
+
+#===========================================================================
+#===========================================================================
+# Convenience
+#===========================================================================
+#===========================================================================
+
+download-all: local local/download/${GCCARMPKG} local/download/${GCCMSPPKG} \
+        ensure-all-iot-lab ensure-all-openwsn ensure-all-riot foren6
+
+
+#-- all pkage:
+
+PKGLIST=cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev libqt4-dev \
+        python-requests python-dev scons python-pip python-bottle
+
+install-all-ubuntu-pkg:
+	make install-ubuntu-pkg PKGNAME="${PKGLIST}"
+
+PIPPKGLIST=PyDispatcher
+
+install-all-pip-pkg:
+	make install-ubuntu-pkg PKGNAME="${PIPPKGLIST}"
+
+install-all-pkg: install-all-ubuntu-pkg install-all-pip-pkg
 
 #===========================================================================
 #===========================================================================
@@ -336,3 +446,5 @@ ${HOME}/.iotlabrc:
            exit 1 ; \
         fi
 	${CURDIR}/iot-lab/parts/cli-tools/auth-cli -u ${IOTLAB_USER}
+
+#---------------------------------------------------------------------------

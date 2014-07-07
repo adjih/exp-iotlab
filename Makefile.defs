@@ -33,12 +33,21 @@ GIT_FOREN6=https://github.com/cetic/foren6.git
 # Repositories from OpenWSN
 #--------------------------------------------------
 
-
+GIT_OPENWSN_FW=https://github.com/openwsn-berkeley/openwsn-fw 
+GIT_OPENWSN_SW=https://github.com/openwsn-berkeley/openwsn-sw
+GIT_OPENWSN_COAP=https://github.com/openwsn-berkeley/coap
 
 #--------------------------------------------------
 # Repositories from Wireshark
 #--------------------------------------------------
 
+# TODO: https://github.com/pdemil/802154e-wireshark
+
+#--------------------------------------------------
+# Url for Contiki/tunslip6 (not a git repository)
+#--------------------------------------------------
+
+#URL_TUNSLIP6=https://github.com/iot-lab/contiki/raw/master/tools/tunslip6.c
 
 #---------------------------------------------------------------------------
 #---------------------------------------------------------------------------
