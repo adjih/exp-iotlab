@@ -203,8 +203,8 @@ ensure-all-openwsn: openwsn openwsn/openwsn-fw openwsn/openwsn-sw \
 
 ensure-openwsn-deps: ensure-all-openwsn ensure-gcc-arm \
             ensure-local-profile ensure-pkg-scons ensure-pkg-python-dev \
-            ensure-pkg-python-pip ensure-pkg-python-bottle \
-	    ensure-pip-PyDispatcher
+             ensure-pkg-python-bottle \
+	    ensure-python-pip ensure-pip-PyDispatcher
 
 build-all-openwsn: build-openwsn-m3 build-openwsn-a8-m3 build-openwsn-sim
 
@@ -219,8 +219,13 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 #firmware/openos/projects/common/oos_openwsn.so
 
 build-openwsn-m3: ensure-openwsn-deps
+	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
+        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
 
 build-openwsn-a8-m3: ensure-openwsn-deps
+
+run-openwsn-sim: ensure-openwsn-sim
+	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb --sim
 
 #===========================================================================
 #===========================================================================
@@ -274,7 +279,45 @@ build-riot-rpl-udp: ensure-all-riot ensure-gcc-arm ensure-local-profile
 #===========================================================================
 #===========================================================================
 
+USE_OPENLAB_DEFS=. ${CURDIR}/local/src/local.profile
 
+
+CONTIKI_HTTP_SERVER_PREFIX=iot-lab/parts/contiki/examples/ipv6/http-server/http-server.iotlab
+
+ensure-contiki-http-server-m3: ${CONTIKI_HTTP_SERVER_PREFIX}-m3
+ensure-contiki-http-server-a8-m3: ${CONTIKI_HTTP_SERVER_PREFIX}-a8-m3
+
+${CONTIKI_HTTP_SERVER_PREFIX}-%: ; make build-contiki-http-server-$*
+
+build-contiki-http-server-%: ensure-all-iot-lab ensure-openlab-prepare \
+         ensure-gcc-arm
+	${USE_OPENLAB_DEFS} \
+        && cd iot-lab/parts/contiki/examples/ipv6/http-server \
+        && make TARGET=iotlab-$*
+
+
+CONTIKI_BORDER_ROUTER_PREFIX=iot-lab/parts/contiki/examples/ipv6/rpl-border-router/border-router.iotlab
+
+ensure-contiki-border-router-m3: ${CONTIKI_BORDER_ROUTER_PREFIX}-m3
+ensure-contiki-border-router-a8-m3: ${CONTIKI_BORDER_ROUTER_PREFIX}-a8-m3
+
+${CONTIKI_BORDER_ROUTER_PREFIX}-%: ; make build-contiki-border-router-$*
+
+build-contiki-border-router-%: ensure-all-iot-lab ensure-openlab-prepare \
+         ensure-gcc-arm
+	${USE_OPENLAB_DEFS} \
+        && cd iot-lab/parts/contiki/examples/ipv6/rpl-border-router \
+        && make TARGET=iotlab-$*
+
+ensure-contiki-rpl-samples: \
+    ensure-contiki-http-server-m3 ensure-contiki-border-router-m3 \
+    ensure-contiki-http-server-a8-m3 ensure-contiki-border-router-a8-m3
+
+#build-contiki-border-router-a8-m3: ensure-all-iot-lab ensure-openlab-prepare \
+#         ensure-gcc-arm
+#	${USE_OPENLAB_DEFS} \
+#        && cd iot-lab/parts/contiki/examples/ipv6/rpl-border-router \
+#        && make TARGET=iotlab-a8-m3
 
 #===========================================================================
 #===========================================================================
@@ -381,16 +424,29 @@ ensure-pkg-scons: /usr/bin/scons
 ensure-pkg-python-dev: /usr/bin/python-config
 /usr/bin/python-config: ; make install-ubuntu-pkg PKGNAME='python-dev'
 
-ensure-pkg-python-pip: /usr/bin/pip
-/usr/bin/pip: ; make install-ubuntu-pkg PKGNAME='python-pip'
 
 ensure-pkg-python-bottle: /usr/share/doc/python-bottle/copyright
 /usr/share/doc/python-bottle/copyright:
 	make install-ubuntu-pkg PKGNAME='python-bottle'
 
-ensure-pip-PyDispatcher: PyDispatcher
-PyDispatcher: ; make install-pip-pkg PKGNAME='PyDispatcher'
+ensure-pip-PyDispatcher: /usr/local/lib/python2.7/dist-packages/pydispatch/__init__.py
+/usr/local/lib/python2.7/dist-packages/pydispatch/__init__.py:
+	make install-pip-pkg PKGNAME='PyDispatcher'
 
+# Problem with python-pip, see:
+# https://bugs.launchpad.net/ubuntu/+source/python-pip/+bug/1306991
+#
+#ensure-pkg-python-pip: /usr/bin/pip
+#/usr/bin/pip: ; make install-ubuntu-pkg PKGNAME='python-pip'
+
+ensure-python-pip: /usr/local/bin/pip
+
+/usr/local/bin/pip:
+	test -e local || make local
+	cd local/download && wget https://raw.github.com/pypa/pip/master/contrib/get-pip.py
+	@printf "Doing 'sudo python get-pip.py' [Ctrl-C to cancel]: " \
+             && read ENTER
+	cd local/download && sudo python get-pip.py
 
 #--------------------------------------------------
 
@@ -412,11 +468,16 @@ install-pip-pkg:
 #===========================================================================
 #===========================================================================
 
-download-all: local local/download/${GCCARMPKG} local/download/${GCCMSPPKG} \
+download-nearly-all: local local/download/${GCCARMPKG}\
+         local/download/${GCCMSPPKG} \
         ensure-all-iot-lab ensure-all-openwsn ensure-all-riot foren6
 
+pack-nearly-all:
+	tar -czvf external-download.tar.gz \
+             local/download/${GCCARMPKG} local/download/${GCCMSPPKG} \
+             iot-lab openwsn riot foren6
 
-#-- all pkage:
+#-- most pkgs:
 
 PKGLIST=cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev libqt4-dev \
         python-requests python-dev scons python-pip python-bottle
@@ -426,7 +487,7 @@ install-all-ubuntu-pkg:
 
 PIPPKGLIST=PyDispatcher
 
-install-all-pip-pkg:
+install-all-pip-pkg: /usr/bin/pip
 	make install-ubuntu-pkg PKGNAME="${PIPPKGLIST}"
 
 install-all-pkg: install-all-ubuntu-pkg install-all-pip-pkg
