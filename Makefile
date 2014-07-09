@@ -306,7 +306,13 @@ build-riot-helloworld: ensure-riot-build-deps
 build-riot-rpl-udp: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
 
-build-riot-default: ensure-riot-build-deps
+ensure-riot-defaultprog: \
+    riot/RIOT/examples/default/bin/iot-lab_M3/default.elf
+
+riot/RIOT/examples/default/bin/iot-lab_M3/default.elf:
+	make build-riot-defaultprog
+
+build-riot-defaultprog: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
 
 #===========================================================================
@@ -574,6 +580,9 @@ ${HOME}/.iotlabrc:
 
 contiki-rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
+   ensure-all-iot-lab
+
+riot-rpl-exp-deps: \
    ensure-all-iot-lab
 
 run-contiki-rpl-experiment: contiki-rpl-exp-deps

@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Automating the steps by O. Chambon et al:
+# Automating the steps by N. Turro, O. Fambon, G. Harter et al.:
 # https://github.com/iot-lab/iot-lab/wiki/HOWTO-use-Foren6-to-diagnose-in-realtime-your-6LoWPAN-experiment
 #
 # Cedric Adjih - Inria - 2014

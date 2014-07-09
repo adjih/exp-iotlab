@@ -20,11 +20,14 @@ def getCredentialsOrFail(parser):
         sys.exit(1)
     return name, password
 
+#def getServerUrl():
+#    if os.path.exists("iotlab.url") and "--dev" in sys.argv:
+#        url = readFile("iotlab.url").strip()
+#    else: url = rest.API_URL # XXX 
+#    return url
+
 def getServerUrl():
-    if os.path.exists("iotlab.url") and "--dev" in sys.argv:
-        url = readFile("iotlab.url").strip()
-    else: url = rest.API_URL # XXX 
-    return url
+    return rest.API_URL # XXX
 
 #---------------------------------------------------------------------------
 
@@ -94,11 +97,13 @@ class IotlabExp:
     def waitUntilRunning(self, verbose=True):
         """Wait until the experiment is in the state 'Running'
         raise an exception if it cannot reach that state (Terminated...)"""
+        delay = 1
         while True:
             state = self.getState()
             if verbose: 
                 print "state:", state
-            time.sleep(2)
+            time.sleep(delay)
+            delay = min(delay * 1.5, 20)
             if state == "Running":
                 break
             elif state in ["Waiting", "Launching", "toLaunch"]:
@@ -127,12 +132,14 @@ def readFile(fileName):
 MaxExp = 1
 
 class IotlabHelper:
-    def __init__(self):
+    def __init__(self, expServer=None):
         self.parser = argparse.ArgumentParser() # XXX: not so useful
         #parser.parse_args()
         parser = self
         name, password = getCredentialsOrFail(parser)
-        serverUrl = getServerUrl()
+        if expServer == None:
+            serverUrl = getServerUrl()
+        else: serverUrl = "https://{0}/rest/" .format(expServer)
         self.request = rest.Api(url = serverUrl,
                                 username=name, password=password, 
                                 parser=parser)
@@ -232,8 +239,34 @@ def runSshRedirectAll(userName, addressList):
     print "Port range:", StartTcpPort, currentPort-1
     print "starting ssh:", " ".join(cmd)
     subprocess.check_call(cmd)
-    
 
+#---------------------------------------------------------------------------
+
+#DefaultSite = "grenoble"
+#DefaultNbNode = 8
+DefaultSite = "strasbourg"
+DefaultNbNode = 3
+DefaultDuration = 10 # minutes
+
+def parserAddTypicalArgs(parser):
+    parser.add_argument("--site", default=DefaultSite)
+    parser.add_argument("--nb", type=int, default=DefaultNbNode)
+    parser.add_argument("--duration", type=int, default=DefaultDuration)
+    parser.add_argument("--dev", type=str, default=None)
+
+def ensureExperimentFromArgs(args):
+    iotlab = IotlabHelper(args.dev)
+    expList = iotlab.getExpList()
+    if len(expList) == 0:
+        print ("- No experience, starting one")
+        exp = iotlab.startExp("RiotRplRest", args.duration, args.site, args.nb)
+    else:
+        print ("- Re-using already running experiment")
+        exp = expList[0]
+
+    print ("- Experiment id=%s" % exp.expId, exp.getState())
+    exp.waitUntilRunning(verbose=True)
+    return iotlab, exp
 
 #---------------------------------------------------------------------------
 
