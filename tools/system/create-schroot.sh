@@ -69,6 +69,7 @@ if [ -e ${SYSTEM_ARCHIVE} ] ; then
   tar -C ${HOME} -xpjf ${SYSTEM_ARCHIVE}
   #tar -C ${HOME} -xpjf ${HOME}/${SYSTEM}-installed.tar.bz2
 else
+  exit 1
   debootstrap ${DIST} ${HOME}/${SYSTEM} ftp://ftp.ubuntu.com/ubuntu
   schroot -c trusty ./update-schroot-dist.sh really-update
 fi

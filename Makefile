@@ -571,3 +571,12 @@ ${HOME}/.iotlabrc:
 	${CURDIR}/iot-lab/parts/cli-tools/auth-cli -u ${IOTLAB_USER}
 
 #---------------------------------------------------------------------------
+
+contiki-rpl-exp-deps: \
+   ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
+   ensure-all-iot-lab
+
+run-contiki-rpl-experiment: contiki-rpl-exp-deps
+	cd tools && python ContikiRplExp.py grenoble 10
+
+#---------------------------------------------------------------------------
