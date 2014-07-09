@@ -59,12 +59,15 @@ EOF
   cat ${CONF} >> /etc/schroot/schroot.conf
 }
 
+SYSTEM_ARCHIVE=${HOME}/${SYSTEM}-installed.tar.bz2 # XXX
+SYSTEM_ARCHIVE=NOT-DEFINED # XXX
+test -e ${SYSTEM_ARCHIVE} || SYSTEM_ARCHIVE=${HOME}/${SYSTEM}-bare.tar.gz
 
-if [ -e ./${SYSTEM}-installed.tar.bz2 ] ; then
+if [ -e ${SYSTEM_ARCHIVE} ] ; then
   echo "** Using archived system"
-  #rm -rf "${HOME}/System-Ubuntu-14.04"
-  #tar -C ${HOME} -xpzf ${HOME}/${SYSTEM}-bare.tar.gz
-  tar -C ${HOME} -xpjf ${HOME}/${SYSTEM}-installed.tar.bz2
+  #rm -rf "${HOME}/System-Ubuntu-14.04" # XXX
+  tar -C ${HOME} -xpjf ${SYSTEM_ARCHIVE}
+  #tar -C ${HOME} -xpjf ${HOME}/${SYSTEM}-installed.tar.bz2
 else
   debootstrap ${DIST} ${HOME}/${SYSTEM} ftp://ftp.ubuntu.com/ubuntu
   schroot -c trusty ./update-schroot-dist.sh really-update

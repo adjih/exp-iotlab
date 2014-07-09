@@ -231,7 +231,7 @@ openwsn/coap:
 ensure-all-openwsn: openwsn openwsn/openwsn-fw openwsn/openwsn-sw \
         openwsn/coap openwsn/openwsn.defs
 
-ensure-openwsn-deps: ensure-all-openwsn ensure-gcc-arm \
+ensure-openwsn-build-deps: ensure-all-openwsn ensure-gcc-arm \
             ensure-local-profile ensure-pkg-scons ensure-pkg-python-dev \
              ensure-pkg-python-bottle \
 	    ensure-python-pip ensure-pip-PyDispatcher \
@@ -239,7 +239,7 @@ ensure-openwsn-deps: ensure-all-openwsn ensure-gcc-arm \
 
 build-all-openwsn: build-openwsn-m3 build-openwsn-a8-m3 build-openwsn-sim
 
-build-openwsn-sim: ensure-openwsn-deps
+build-openwsn-sim: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
         && scons board=python toolchain=gcc oos_openwsn
 
@@ -249,13 +249,13 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
 #firmware/openos/projects/common/oos_openwsn.so
 
-build-openwsn-m3: ensure-openwsn-deps
+build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
         && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
 
-build-openwsn-a8-m3: ensure-openwsn-deps
+build-openwsn-a8-m3: ensure-openwsn-build-deps
 
-run-openwsn-sim: ensure-openwsn-sim ensure-openwsn-deps
+run-openwsn-sim: ensure-openwsn-sim ensure-openwsn-build-deps
 	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb --sim
 
 #===========================================================================
@@ -297,15 +297,17 @@ riot/thirdparty_cpu:
 
 ensure-all-riot: ensure-riot ensure-riot-board ensure-riot-cpu
 
-build-riot-helloworld: ensure-all-riot ensure-gcc-arm ensure-local-profile
+ensure-riot-build-deps: \
+   ensure-all-riot ensure-gcc-arm ensure-local-profile
+
+build-riot-helloworld: ensure-riot-build-deps 
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make
 
-build-riot-rpl-udp: ensure-all-riot ensure-gcc-arm ensure-local-profile
+build-riot-rpl-udp: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
 
-build-riot-default: ensure-all-riot ensure-gcc-arm ensure-local-profile
+build-riot-default: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
-
 
 #===========================================================================
 #===========================================================================
@@ -315,7 +317,6 @@ build-riot-default: ensure-all-riot ensure-gcc-arm ensure-local-profile
 
 USE_OPENLAB_DEFS=. ${CURDIR}/local/src/local.profile
 
-
 CONTIKI_HTTP_SERVER_PREFIX=iot-lab/parts/contiki/examples/ipv6/http-server/http-server.iotlab
 
 ensure-contiki-http-server-m3: ${CONTIKI_HTTP_SERVER_PREFIX}-m3
@@ -323,8 +324,10 @@ ensure-contiki-http-server-a8-m3: ${CONTIKI_HTTP_SERVER_PREFIX}-a8-m3
 
 ${CONTIKI_HTTP_SERVER_PREFIX}-%: ; make build-contiki-http-server-$*
 
-build-contiki-http-server-%: ensure-all-iot-lab ensure-openlab-prepare \
-         ensure-gcc-arm
+ensure-contiki-build-deps:  ensure-all-iot-lab ensure-openlab-prepare \
+         ensure-gcc-arm ensure-local-profile
+
+build-contiki-http-server-%: ensure-contiki-build-deps
 	${USE_OPENLAB_DEFS} \
         && cd iot-lab/parts/contiki/examples/ipv6/http-server \
         && make TARGET=iotlab-$*
@@ -337,8 +340,7 @@ ensure-contiki-border-router-a8-m3: ${CONTIKI_BORDER_ROUTER_PREFIX}-a8-m3
 
 ${CONTIKI_BORDER_ROUTER_PREFIX}-%: ; make build-contiki-border-router-$*
 
-build-contiki-border-router-%: ensure-all-iot-lab ensure-openlab-prepare \
-         ensure-gcc-arm
+build-contiki-border-router-%: ensure-contiki-build-deps
 	${USE_OPENLAB_DEFS} \
         && cd iot-lab/parts/contiki/examples/ipv6/rpl-border-router \
         && make TARGET=iotlab-$*
@@ -361,12 +363,12 @@ ensure-contiki-rpl-samples: \
 
 # https://github.com/cetic/foren6
 
-ensure-foren6-compile: foren6/gui-qt/release/foren6 foren6
+ensure-foren6-gui: foren6/gui-qt/release/foren6 foren6
 
 foren6:
 	git clone ${GIT_FOREN6}
 
-run-foren6: ensure-foren6-compile
+run-foren6: ensure-foren6-gui
 	cd foren6 && make run
 
 foren6/gui-qt/release/foren6: 
@@ -500,7 +502,7 @@ ifeq (${WITH_UBUNTU_APTGET_INSTALL},yes)
 install-ubuntu-pkg:
 	@printf "Doing 'sudo apt-get install ${PKGNAME}' [Ctrl-C to cancel]: " \
              && read ENTER
-	sudo apt-get install ${PKGNAME}
+	sudo apt-get install -y ${PKGNAME}
 
 install-pip-pkg:
 	@printf "Doing 'sudo pip install ${PKGNAME}' [Ctrl-C to cancel]: " \
