@@ -23,7 +23,7 @@ echo "*** Installing ${DESC} in ${HOME}/${SYSTEM} for user '${THISUSER}'"
 printf "*** press any key to continue or [Ctrl-C] to abort: "
 read whatever
 
-apt-get install schroot debootstrap || exit 1 # script must be run as root
+apt-get install -y schroot debootstrap || exit 1 # script must be run as root
 
 test -e ${HOME}/${SYSTEM} || mkdir ${HOME}/${SYSTEM}
 CONF=${HOME}/${SYSTEM}/schroot.conf-part
@@ -46,12 +46,6 @@ aliases=${DIST}
 EOF
 )> ${CONF}
 
-  ##if [ `arch` = x86_64 ] ; then
-  ##  echo "personality=linux32" >> ${CONF}
-  ##  #apt-get install linux32 # XXX: TODO
-  ##fi
-
-  # XXX: should try using Source chroot
 
   echo "--- Modifying /etc/schroot/schroot.conf, adding:"
   cat ${CONF}
@@ -59,15 +53,16 @@ EOF
   cat ${CONF} >> /etc/schroot/schroot.conf
 }
 
-SYSTEM_ARCHIVE=${HOME}/${SYSTEM}-installed.tar.bz2 # XXX
-SYSTEM_ARCHIVE=NOT-DEFINED # XXX
-test -e ${SYSTEM_ARCHIVE} || SYSTEM_ARCHIVE=${HOME}/${SYSTEM}-bare.tar.gz
+if [ `arch` = x86_64 ] ; then
+  SYSTEM_ARCHIVE=../../System-Ubuntu-14.04-64bit.tar.bz2
+else
+  SYSTEM_ARCHIVE=../../System-Ubuntu-14.04-32bit.tar.bz2
+fi
 
 if [ -e ${SYSTEM_ARCHIVE} ] ; then
   echo "** Using archived system"
   #rm -rf "${HOME}/System-Ubuntu-14.04" # XXX
   tar -C ${HOME} -xpjf ${SYSTEM_ARCHIVE}
-  #tar -C ${HOME} -xpjf ${HOME}/${SYSTEM}-installed.tar.bz2
 else
   debootstrap ${DIST} ${HOME}/${SYSTEM} ftp://ftp.ubuntu.com/ubuntu
   schroot -c trusty ./update-schroot-dist.sh really-update

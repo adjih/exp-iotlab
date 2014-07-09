@@ -6,9 +6,14 @@
 #---------------------------------------------------------------------------
 
 import argparse
-
 import IotlabHelper
-
 
 #---------------------------------------------------------------------------
 
+parser = argparse.ArgumentParser(
+    description = "Run an Contiki RPL experiment"
+)
+
+argList = parser.parse_args()
+
+#---------------------------------------------------------------------------
