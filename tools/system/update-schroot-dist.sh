@@ -12,6 +12,10 @@ if [ "$1" != "really-update" ] ; then
   exit 1
 fi
 
+if [ "$2" != "" ] ; then
+  NAME=$2
+fi
+
 grep -q multiverse /etc/apt/sources.list || (
   echo "Updating /etc/apt/sources.list (adding multiverse)"
 (cat <<EOF
