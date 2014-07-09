@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------
 
 import sys, argparse, pprint, os, time
-import json
+import json, subprocess
 sys.path.append("../iot-lab/parts/cli-tools")
 
 from iotlabcli import rest, helpers, experiment
@@ -105,11 +105,26 @@ class IotlabExp:
                 continue
             else: 
                 raise IotlabException("Experiment cannot be 'Running'", state)
-        
+
+
+def getNodePerServer(addressList):
+    nodeOfServer = {}
+    for address in addressList:
+        addressToken = address.split(".")
+        name = addressToken[0]
+        server = ".".join(addressToken[1:])
+        if server not in nodeOfServer:
+            nodeOfServer[server] = []
+        nodeOfServer[server].append(name)
+    return nodeOfServer
+
+def readFile(fileName):
+    with open(fileName) as f:
+        return f.read()
+
 #--------------------------------------------------
 
 MaxExp = 1
-
 
 class IotlabHelper:
     def __init__(self):
@@ -121,6 +136,7 @@ class IotlabHelper:
         self.request = rest.Api(url = serverUrl,
                                 username=name, password=password, 
                                 parser=parser)
+        self.userName = name
 
     def _makeExp(self, expId):
         "Factory for IotlabExp"
@@ -180,24 +196,71 @@ class IotlabHelper:
         sys.exit(1)
 
 #---------------------------------------------------------------------------
+# More utilities functions
+#---------------------------------------------------------------------------
 
-def readFile(fileName):
-    with open(fileName) as f:
-        return f.read()
+def flashSomeNodes(exp, firmwareFileName, addressList, addressFilter):
+    if addressList == None:
+        expInfo = exp.getResources()
+        addressList = [nodeInfo["network_address"] 
+                       for nodeInfo in expInfo["items"]]
+    
+def extractNodeId(address):
+    """m3-4.grenoble.iot-lab.info -> integer 4"""
+    nodeName = address.split(".")[0]
+    return int(nodeName.split("-")[-1])
+
+def runSshRedirectAll(userName, addressList):
+    nodeOfServer = getNodePerServer(addressList)
+
+    if len(nodeOfServer) != 1:
+        raise NotImplemented("more than 1 server") # XXX: support several
+
+    server = nodeOfServer.keys()[0]
+    nodeList = nodeOfServer[server]
+
+    StartTcpPort = 30000
+    currentPort = StartTcpPort
+    #userName = os.environ.get("USER")
+    cmd = ["ssh","%s@%s" % (userName, server)]
+    for nodeName in nodeList:
+        cmd.extend(["-L %s:%s:20000" % (currentPort, nodeName)])
+        currentPort += 1
+
+    # XXX Should probably write in some file, the 'nodeOfServer' + ports
+
+    print "Port range:", StartTcpPort, currentPort-1
+    print "starting ssh:", " ".join(cmd)
+    subprocess.check_call(cmd)
+    
+
+
+#---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     iotlab = IotlabHelper()
-    #pprint.pprint(iotlab.getSiteList())
+    
+    print "--- List of sites"
+    pprint.pprint(iotlab.getSiteList())
 
+    print "--- List of experiments"
     expInfoList = iotlab.getExpInfoList(["Running", "Waiting", "Launching",
                                          "toLaunch"])
     pprint.pprint(expInfoList)
 
+    sys.exit(0)
+
     expList = iotlab.getExpList()
 
+#---------------------------------------------------------------------------
+# Not used
+#---------------------------------------------------------------------------
+
+if False:
     if len(expList) == 0:
         print ("No experience, starting one")
-        exp = iotlab.startExp("Rest", 10, "rocquencourt", 10)
+        #exp = iotlab.startExp("Rest", 10, "rocquencourt", 10)
+        exp = iotlab.startExp("AutoRest", 10, "grenoble", 8)
 
     else:
         print ("Re-using already running experiment")
@@ -206,35 +269,41 @@ if __name__ == "__main__":
     print "Experiment id=%s" % exp.expId, exp.getState()
     exp.waitUntilRunning(verbose=True)
 
+    #exp.doNodeCmd("reset", AllList)
+
+    #exitNow
+
     #codeFirmwareFileName = \
     #    "../riot/RIOT/examples/hello-world/bin/iot-lab_M3/hello-world.elf"
 
-    codeFirmwareFileName = \
-        "../riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf"
+    #codeFirmwareFileName = \
+    #    "../riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf"
 
     snifferFirmwareFileName = \
         "../iot-lab/parts/openlab/build.m3/bin/foren6_sniffer.elf"
 
+    #codeFirmwareFileName = \
+    #    "../riot/RIOT/examples/default/bin/iot-lab_M3//default.elf"
+
     #https://github.com/iot-lab/iot-lab/wiki/HOWTO-use-Foren6-to-diagnose-in-realtime-your-6LoWPAN-experiment
 
-    codeFirmwareData = readFile(codeFirmwareFileName)
-    snifferFirmwareData = readFile(snifferFirmwareFileName)
+    codeFirmwareFileName = "../openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog"
+
+    #codeFirmwareData = readFile(codeFirmwareFileName)
+    #snifferFirmwareData = readFile(snifferFirmwareFileName)
      
-    expInfo = exp.getResources()
-    addressList = [nodeInfo["network_address"] for nodeInfo in expInfo["items"]]
-    pprint.pprint(addressList)
+    #expInfo = exp.getResources()
+    #addressList = [nodeInfo["network_address"] for nodeInfo in expInfo["items"]]
+    #pprint.pprint(addressList)
 
-
-    def getNodeId(address):
-        nodeName = address.split(".")[0]
-        return int(nodeName.split("-")[-1])
 
     snifferAddressList = [address for address in addressList
                           if getNodeId(address)%2 == 0]
+    snifferAddressList = []
     codeAddressList = list(set(addressList).difference(set(snifferAddressList)))
-
     
-    print exp.doNodeCmd("update", snifferAddressList, snifferFirmwareData)
+    if len(snifferAddressList) > 0:
+        print exp.doNodeCmd("update", snifferAddressList, snifferFirmwareData)
     print exp.doNodeCmd("update", codeAddressList, codeFirmwareData)
 
     #print "stopping experience"

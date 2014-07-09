@@ -8,6 +8,7 @@
 
 # All repositories variables are set in:
 include Makefile.defs
+-include Makefile-local.defs
 
 default: help
 
@@ -22,12 +23,24 @@ default: help
 # From: https://github.com/iot-lab/iot-lab/wiki/FAQ_Gcc_arm_versions
 #---------------------------------------------------------------------------
 
+ifeq (${WITH_PKG_GCC_ARM},yes)
+
+# gcc-arm from Ubuntu packages
+ensure-gcc-arm: ensure-pkg-gcc-arm
+
+ensure-pkg-gcc-arm: /usr/bin/arm-none-eabi-gcc
+/usr/bin/arm-none-eabi-gcc:
+	make install-ubuntu-pkg PKGNAME='gcc-arm-none-eabi'
+
+else
+
+# gcc-arm as indicated in the IoT-LAB tutorial
 GCCARMPKG=gcc-arm-none-eabi-4_8-2014q2-20140609-linux.tar.bz2
 GCCARMDIR=${CURDIR}/local/gcc-arm-none/bin
 
 ensure-gcc-arm: local/gcc-arm-none/bin/arm-none-eabi-gcc
 
-local/download/${GCCARMPKG}:
+local/download/${GCCARMPKG}: ensure-pkg-wget
 	test -e local || make local
 	cd local/download && wget https://launchpad.net/gcc-arm-embedded/4.8/4.8-2014-q2-update/+download/${GCCARMPKG}
 
@@ -36,17 +49,32 @@ local/gcc-arm-none/bin/arm-none-eabi-gcc:
 	tar -xjvf local/download/${GCCARMPKG} -C local
 	ln -s gcc-arm-none-eabi-4_8-2014q2 local/gcc-arm-none
 
+endif
+
 #---------------------------------------------------------------------------
 # MSP430 cross-compiler
-# from: iot-lab/parts/wsn430/README.md
+# WAS: from: iot-lab/parts/wsn430/README.md 
+# REPLACED BY: from gcc-msp430 (from Ubuntu 14.04)
 #---------------------------------------------------------------------------
 
+ifeq (${WITH_PKG_GCC_MSP430},yes)
+
+# MSP430 from Ubuntu packages
+ensure-gcc-msp430: ensure-pkg-gcc-msp430
+
+ensure-pkg-gcc-msp430: /usr/bin/msp430-gcc
+/usr/bin/msp430-gcc:
+	make install-ubuntu-pkg PKGNAME='gcc-msp430'
+
+else
+
+# MSP430 from Zolertia site (as described in IoT-LAB tutorial)
 GCCMSPPKG=msp430-z1.tar.gz
 GCCMSPDIR=${CURDIR}/local/msp430/bin
 
 ensure-gcc-msp430: local/msp430/bin/msp430-gcc
 
-local/download/${GCCMSPPKG}:
+local/download/${GCCMSPPKG}: ensure-pkg-wget
 	test -e local || make local
 	cd local/download && wget http://sourceforge.net/projects/zolertia/files/Toolchain/${GCCMSPPKG}
 
@@ -54,6 +82,8 @@ local/msp430/bin/msp430-gcc:
 	make local/download/${GCCMSPPKG}
 	tar -xzvf local/download/${GCCMSPPKG} -C local
 	ln -s msp430-z1 local/msp430
+
+endif
 
 #--------------------------------------------------------------------------
 # CLI Tools Installation
@@ -87,7 +117,7 @@ iot-lab/Makefile:
 	git clone ${GIT_IOTLAB}
 
 
-ensure-cli-tools: ensure-pkg-python-requests iot-lab/parts/cli-tools
+ensure-cli-tools: ensure-pip-requests iot-lab/parts/cli-tools
 
 iot-lab/parts/cli-tools: # <- no deps (is intended)
 	make ensure-iot-lab # ^^^^^^^
@@ -129,7 +159,7 @@ iot-lab/parts/openlab/build.m3/CMakeFiles \
   iot-lab/parts/openlab/build.fox/CMakeFiles:
 	make prepare-openlab
 
-prepare-openlab: ensure-pkg-cmake ensure-pkg-g++
+prepare-openlab: ensure-pkg-cmake ensure-pkg-g++ ensure-openlab
 	@#export PATH=${GCCARMDIR}:${PATH} && 
 	for subdir in m3 a8-m3 fox ; do \
 	    test -e iot-lab/parts/openlab/build.$${subdir} \
@@ -150,7 +180,7 @@ build-tutorial-a8-m3: ensure-openlab-prepare
         && cd iot-lab/parts/openlab/build.a8-m3 && make tutorial_m3 PATH=$$PATH
 
 # see: iot-lab/parts/wsn430/README.md
-build-samples-wsn430: ensure-wsn430
+build-samples-wsn430: ensure-wsn430 ensure-gcc-msp430
 	export PATH=${GCCMSPDIR}:${PATH} \
         && cd iot-lab/parts/wsn430 && make -f iotlab.makefile PATH=$$PATH
 
@@ -204,7 +234,8 @@ ensure-all-openwsn: openwsn openwsn/openwsn-fw openwsn/openwsn-sw \
 ensure-openwsn-deps: ensure-all-openwsn ensure-gcc-arm \
             ensure-local-profile ensure-pkg-scons ensure-pkg-python-dev \
              ensure-pkg-python-bottle \
-	    ensure-python-pip ensure-pip-PyDispatcher
+	    ensure-python-pip ensure-pip-PyDispatcher \
+           ensure-pkg-python-serial
 
 build-all-openwsn: build-openwsn-m3 build-openwsn-a8-m3 build-openwsn-sim
 
@@ -224,7 +255,7 @@ build-openwsn-m3: ensure-openwsn-deps
 
 build-openwsn-a8-m3: ensure-openwsn-deps
 
-run-openwsn-sim: ensure-openwsn-sim
+run-openwsn-sim: ensure-openwsn-sim ensure-openwsn-deps
 	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb --sim
 
 #===========================================================================
@@ -271,6 +302,9 @@ build-riot-helloworld: ensure-all-riot ensure-gcc-arm ensure-local-profile
 
 build-riot-rpl-udp: ensure-all-riot ensure-gcc-arm ensure-local-profile
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
+
+build-riot-default: ensure-all-riot ensure-gcc-arm ensure-local-profile
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
 
 
 #===========================================================================
@@ -381,7 +415,7 @@ build-sniffer-foren6-a8-m3:
 #---------------------------------------------------------------------------
 
 help:
-	@echo "<read the Makefile, sorry>"
+	@echo "<read the Makefile.defs, Makefile, sorry>"
 
 local:
 	mkdir local
@@ -424,14 +458,24 @@ ensure-pkg-scons: /usr/bin/scons
 ensure-pkg-python-dev: /usr/bin/python-config
 /usr/bin/python-config: ; make install-ubuntu-pkg PKGNAME='python-dev'
 
+ensure-pkg-wget: /usr/bin/wget
+/usr/bin/wget: ; make install-ubuntu-pkg PKGNAME='wget'
 
 ensure-pkg-python-bottle: /usr/share/doc/python-bottle/copyright
 /usr/share/doc/python-bottle/copyright:
 	make install-ubuntu-pkg PKGNAME='python-bottle'
 
+ensure-pkg-python-serial: /usr/share/doc/python-serial/copyright
+/usr/share/doc/python-serial/copyright:
+	make install-ubuntu-pkg PKGNAME='python-serial'
+
 ensure-pip-PyDispatcher: /usr/local/lib/python2.7/dist-packages/pydispatch/__init__.py
 /usr/local/lib/python2.7/dist-packages/pydispatch/__init__.py:
 	make install-pip-pkg PKGNAME='PyDispatcher'
+
+ensure-pip-requests: /usr/local/lib/python2.7/dist-packages/requests/__init__.py
+/usr/local/lib/python2.7/dist-packages/requests/__init__.py:
+	make install-pip-pkg PKGNAME='requests<=1.2.3'
 
 # Problem with python-pip, see:
 # https://bugs.launchpad.net/ubuntu/+source/python-pip/+bug/1306991
@@ -441,7 +485,10 @@ ensure-pip-PyDispatcher: /usr/local/lib/python2.7/dist-packages/pydispatch/__ini
 
 ensure-python-pip: /usr/local/bin/pip
 
+ifeq (${WITH_UBUNTU_APTGET_INSTALL},yes)
+
 /usr/local/bin/pip:
+	make ensure-pkg-wget
 	test -e local || make local
 	cd local/download && wget https://raw.github.com/pypa/pip/master/contrib/get-pip.py
 	@printf "Doing 'sudo python get-pip.py' [Ctrl-C to cancel]: " \
@@ -458,9 +505,22 @@ install-ubuntu-pkg:
 install-pip-pkg:
 	@printf "Doing 'sudo pip install ${PKGNAME}' [Ctrl-C to cancel]: " \
              && read ENTER
-	sudo pip install ${PKGNAME}
+	sudo pip install "${PKGNAME}"
 
 #---------------------------------------------------------------------------
+
+else
+
+/usr/local/bin/pip:
+	echo "Please install /usr/local/bin/pip or change Makefile"
+
+install-ubuntu-pkg:
+	echo "Please install ubuntu package ${PKGNAME} or change Makefile"
+
+install-pip-pkg:
+	echo "Please install python pip package ${PKGNAME} or change Makefile"
+
+endif
 
 #===========================================================================
 #===========================================================================
@@ -480,7 +540,7 @@ pack-nearly-all:
 #-- most pkgs:
 
 PKGLIST=cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev libqt4-dev \
-        python-requests python-dev scons python-pip python-bottle
+        python-dev scons python-bottle python-serial python-tk
 
 install-all-ubuntu-pkg:
 	make install-ubuntu-pkg PKGNAME="${PKGLIST}"

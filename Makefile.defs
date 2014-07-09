@@ -4,6 +4,26 @@
 # a branch e.g. GIT_<PROJECT>=<URL> -b <BRANCH>)
 #---------------------------------------------------------------------------
 
+# Whether using msp430-gcc from Ubuntu system package
+# or binaries from Zolertia(tm) (for z1)
+# When on Ubuntu 14.04, the system packages is 4.6.3 and can be used to 
+# compile OpenWSN for actual TelosB motes (should be - not verified yet)
+
+WITH_PKG_GCC_MSP430 = yes
+
+# Whether using gcc-arm from Ubuntu system packages or last binaries for site
+# IoT-LAB tutorial instructions corresponds to '= no'; 'yes' is untested
+
+WITH_PKG_GCC_ARM = no
+
+# The Makefile tries to automatically check necessary tools and when
+# missing, tries 'apt-get install' or 'pip install'. Put 'no' to disable
+# it, then you will have to install manually, and probably change the
+# Makefile because of different tools/pkg paths. 
+# Also 'yes' was tested on Ubuntu 14.04.
+
+WITH_UBUNTU_APTGET_INSTALL = yes
+
 #--------------------------------------------------
 # Repositories from IoT-LAB github
 #--------------------------------------------------
@@ -21,6 +41,7 @@ GIT_IOTLAB_WSN430=https://github.com/iot-lab/wsn430.git
 GIT_RIOT=https://github.com/RIOT-OS/RIOT.git
 GIT_RIOT_BOARD=https://github.com/RIOT-OS/thirdparty_boards.git
 GIT_RIOT_CPU=https://github.com/RIOT-OS/thirdparty_cpu.git
+#GIT_RIOT_CPU=https://github.com/thomaseichinger/thirdparty_cpu -b absolute
 
 #--------------------------------------------------
 # Repositories from foren6

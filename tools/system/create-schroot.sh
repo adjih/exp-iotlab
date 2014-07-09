@@ -60,10 +60,16 @@ EOF
 }
 
 
-#debootstrap ${DIST} ${HOME}/${SYSTEM} ftp://ftp.ubuntu.com/ubuntu
-rm -rf "${HOME}/System-Ubuntu-14.04"
-tar -C ${HOME} -xpzf ${HOME}/${SYSTEM}-bare.tar.gz
+if [ -e ./${SYSTEM}-installed.tar.bz2 ] ; then
+  echo "** Using archived system"
+  #rm -rf "${HOME}/System-Ubuntu-14.04"
+  #tar -C ${HOME} -xpzf ${HOME}/${SYSTEM}-bare.tar.gz
+  tar -C ${HOME} -xpjf ${HOME}/${SYSTEM}-installed.tar.bz2
+else
+  debootstrap ${DIST} ${HOME}/${SYSTEM} ftp://ftp.ubuntu.com/ubuntu
+  schroot -c trusty ./update-schroot-dist.sh really-update
+fi
 
-printf "*** you can now run: schroot -c ${DIST}"
+echo  "*** you can now run: schroot -c ${DIST}"
 
 #---------------------------------------------------------------------------
