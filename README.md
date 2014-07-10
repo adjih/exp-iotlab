@@ -35,6 +35,7 @@ For more automation, two parts are added (really a byproduct):
 
 _This is not working for now (for me) because of SSH_AGENT_PID etc._
 
+
 1) Configure your ssh config properly to access IoT-LAB servers.
 
 2) Get an Ubuntu 12.04 or 14.04 (ever real or in a VM). Install a schroot-ed
