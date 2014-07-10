@@ -171,6 +171,22 @@ prepare-openlab: ensure-pkg-cmake ensure-pkg-g++ ensure-openlab
 
 #---------------------------------------------------------------------------
 
+USE_OPENLAB_DEFS=. ${CURDIR}/local/src/local.profile
+
+OPENLAB_EXAMPLE=example_soft_timer_delay
+
+ensure-openlab-example-m3: \
+  iot-lab/parts/openlab/build.m3/bin/${OPENLAB_EXAMPLE}.elf
+
+iot-lab/parts/openlab/build.m3/bin/${OPENLAB_EXAMPLE}.elf:
+	make build-openlab-example-m3
+
+build-openlab-example-m3: ensure-openlab-prepare
+	${USE_OPENLAB_DEFS} && cd iot-lab/parts/openlab/build.m3 \
+         && make ${OPENLAB_EXAMPLE}
+
+#---------------------------------------------------------------------------
+
 build-tutorial-m3: ensure-openlab-prepare
 	export PATH=${GCCARMDIR}:${PATH} \
         && cd iot-lab/parts/openlab/build.m3 && make tutorial_m3 PATH=$$PATH
@@ -249,17 +265,14 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
 
 #firmware/openos/projects/common/oos_openwsn.so
-ensure-openwsn-m3: firmware/openos/projects/common/03oos_openwsn_prog-stripped
+ensure-openwsn-m3: firmware/openos/projects/common/03oos_openwsn_prog
 
-firmware/openos/projects/common/03oos_openwsn_prog-stripped:
+firmware/openos/projects/common/03oos_openwsn_prog:
 	make build-openwsn-m3
 
 build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
-        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn \
-        && arm-none-eabi-strip \
-               firmware/openos/projects/common/03oos_openwsn_prog \
-            -o firmware/openos/projects/common/03oos_openwsn_prog-stripped
+        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
 
 build-openwsn-a8-m3: ensure-openwsn-build-deps
 
@@ -296,12 +309,18 @@ ensure-riot-board: riot/thirdparty_boards
 riot/thirdparty_boards:
 	make ensure-riot
 	git clone ${GIT_RIOT_BOARD} riot/thirdparty_boards
+	cd riot/thirdparty_boards/iot-lab_M3/include \
+        && mv board.h board.h-orig \
+        && sed s/115200/500000/g < board.h-orig > board.h
 
 ensure-riot-cpu: riot/thirdparty_cpu
 
 riot/thirdparty_cpu:
 	make ensure-riot
 	git clone ${GIT_RIOT_CPU} riot/thirdparty_cpu
+	cd riot/thirdparty_cpu \
+	&& git checkout -b thomaseichinger-fix_stm32f1 master \
+	&& git pull --no-edit git@github.com:thomaseichinger/thirdparty_cpu.git fix_stm32f1
 
 ensure-all-riot: ensure-riot ensure-riot-board ensure-riot-cpu
 
@@ -309,10 +328,7 @@ ensure-riot-build-deps: \
    ensure-all-riot ensure-gcc-arm ensure-local-profile
 
 build-riot-helloworld: ensure-riot-build-deps 
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make \
-	&& arm-none-eabi-strip \
-                 bin/iot-lab_M3/hello-world.elf \
-              -o bin/iot-lab_M3/hello-world-stripped.elf
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make
 
 build-riot-rpl-udp: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
@@ -320,14 +336,11 @@ build-riot-rpl-udp: ensure-riot-build-deps
 ensure-riot-defaultprog: \
     riot/RIOT/examples/default/bin/iot-lab_M3/default.elf
 
-riot/RIOT/examples/default/bin/iot-lab_M3/default-stripped.elf:
+riot/RIOT/examples/default/bin/iot-lab_M3/default.elf:
 	make build-riot-defaultprog
 
 build-riot-defaultprog: ensure-riot-build-deps
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make \
-	&& arm-none-eabi-strip \
-              bin/iot-lab_M3/default.elf \
-           -o bin/iot-lab_M3/default-stripped.elf
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
 
 #===========================================================================
 #===========================================================================
