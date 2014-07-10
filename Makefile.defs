@@ -68,7 +68,7 @@ GIT_OPENWSN_COAP=https://github.com/openwsn-berkeley/coap
 # Url for Contiki/tunslip6 (not a git repository)
 #--------------------------------------------------
 
-#URL_TUNSLIP6=https://github.com/iot-lab/contiki/raw/master/tools/tunslip6.c
+URL_TUNSLIP6=https://github.com/iot-lab/contiki/raw/master/tools/tunslip6.c
 
 #---------------------------------------------------------------------------
 #---------------------------------------------------------------------------

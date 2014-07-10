@@ -31,6 +31,33 @@ For more automation, two parts are added (really a byproduct):
 
 ---------------------------------------------------------------------------
 
+# tl;dr
+
+_This is not working for now (for me) because of SSH_AGENT_PID etc._
+
+1) Configure your ssh config properly to access IoT-LAB servers.
+
+2) Get an Ubuntu 12.04 or 14.04 (ever real or in a VM). Install a schroot-ed
+Ubuntu 14.04:
+```
+git clone https://github.com/adjih/exp-iotlab.git
+cd exp-iotlab/tools/system && ./create-schroot.sh
+```
+
+3) Start your schroot-ed Ubuntu 14.04:
+```
+cd exp-iotlab && make go-trusty
+```
+
+4) Start a Contiki RPL experiment in the newly appeared roxterm
+```
+cd tools && python ExpContikiRpl.py --site grenoble --nb-nodes 8 --nb-sniffers 2 --duration 10
+```
+
+See details below.
+
+---------------------------------------------------------------------------
+
 # Experiments
 
 ```

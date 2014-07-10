@@ -205,12 +205,21 @@ build-samples-wsn430: ensure-wsn430 ensure-gcc-msp430
 run-bash: local/src/local.profile
 	bash --init-file local/src/local.profile #XXX default .rc
 
+run-roxterm: local/src/local.profile ensure-pkg-roxterm
+	DISPLAY=:0 roxterm -e bash --init-file local/src/local.profile #XXX default .rc
+
+go-trusty:
+	schroot -c trusty make run-roxterm
+
 ensure-local-profile: local/src/local.profile
 
 local/src/local.profile: Makefile
 	(echo "# Automagically generated" ; \
-	echo "PATH=${GCCARMDIR}:${GCCMSPDIR}:${CURDIR}/iot-lab/parts/cli-tools:${CURDIR}/local/bin:$$PATH" ; \
-	echo "export PATH") > $@
+	echo "PATH=${GCCARMDIR}:${GCCMSPDIR}:${CURDIR}/iot-lab/parts/cli-tools:${CURDIR}/local/bin:$$PATH" ;  \
+	echo "export PATH" ;  \
+        echo "DISPLAY=:0" ;   \
+        echo "export DISPLAY" \
+         ) > $@
 
 #===========================================================================
 #===========================================================================
@@ -393,8 +402,7 @@ ensure-contiki-tunslip6-src: local/src/tunslip6.c
 
 local/src/tunslip6.c:
 	make really-ensure-local-dirs ensure-pkg-wget
-	wget https://github.com/iot-lab/contiki/raw/master/tools/tunslip6.c \
-             -O $@
+	wget ${URL_TUNSLIP6} -O $@
 
 really-ensure-local-dirs: 
 	for i in local local/src local/bin local/download ; do \
@@ -520,6 +528,12 @@ ensure-pkg-python-bottle: /usr/share/doc/python-bottle/copyright
 /usr/share/doc/python-bottle/copyright:
 	make install-ubuntu-pkg PKGNAME='python-bottle'
 
+ensure-pkg-roxterm: /usr/bin/roxterm
+/usr/bin/roxterm: ; make install-ubuntu-pkg PKGNAME='roxterm'
+
+ensure-pkg-socat: /usr/bin/socat
+/usr/bin/socat: ; make install-ubuntu-pkg PKGNAME='socat'
+
 ensure-pkg-python-serial: /usr/share/doc/python-serial/copyright
 /usr/share/doc/python-serial/copyright:
 	make install-ubuntu-pkg PKGNAME='python-serial'
@@ -628,7 +642,9 @@ ${HOME}/.iotlabrc:
 contiki-rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
    ensure-all-iot-lab \
-   ensure-pkg-roxterm ensure-pkg-wireshark ensure-pkg-paramiko
+   ensure-pkg-roxterm ensure-pkg-socat
+
+#ensure-pkg-wireshark ensure-pkg-paramiko
 
 run-contiki-rpl-experiment: contiki-rpl-exp-deps
 	cd tools && python ExpContikiRpl.py --site grenoble --nb 10

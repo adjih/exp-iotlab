@@ -7,7 +7,7 @@
 # Cedric Adjih - Inria - 2014
 #---------------------------------------------------------------------------
 
-import argparse, time, sys
+import argparse, time, sys, random
 import IotlabHelper
 from IotlabHelper import extractNodeId, AllPossibleNodes
 
@@ -31,97 +31,116 @@ TunslipBinFileName = "sudo ../local/bin/tunslip6 aaaa::1/64 -L -a localhost -p 2
 #---------------------------------------------------------------------------
 
 parser = argparse.ArgumentParser(
-    description = "Run a Contiki RPL experiment"
+    description = ExperimentName
 )
-IotlabHelper.parserAddTypicalArgs(parser)
+parser.add_argument("--wipe", dest="wipe", action="store_true", default=False)
+parser.add_argument("--nb-sniffers", dest="nbSniffers", type=int, default=0)
+IotlabHelper.parserAddTypicalArgs(parser, "ContikiRpl_BorderHttpSniffer")
 args = parser.parse_args()
 
 #---------------------------------------------------------------------------
 
 iotlabHelper, exp = IotlabHelper.ensureExperimentFromArgs(args)
 
+#--------------------------------------------------
+# Identify the IoT-LAB server of the experiment
+# this will be used for an ssh tunnel
+
 nodeList = exp.getNodeList()
 nodeOfServer = IotlabHelper.getNodePerServer(nodeList)
 if len(nodeOfServer.keys()) != 1: 
     sys.stderr.write("ERROR: multi-site experiment not handled")
     sys.exit(1)
-expServer = nodeOfServer.keys()[0]
+expServer = nodeOfServer.keys()[0] 
 
 #--------------------------------------------------
+# Ensure that persistent info corresponds to this experiment
 
-expInfo = exp.loadPersistentInfo()
-oldName = expInfo.get("name")
-if oldName != ExperimentName:
-    if oldName != None:
-        print "- Experiment was '%s', erasing persistent [meta-]info" % (
-            expInfo.get("name"))
-    expInfo = { "name": ExperimentName }
+if args.wipe:
+    exp.resetPersistentInfo()
+isReset = exp.ensurePersistentNameOrReset(ExperimentName)
+
+expInfo = exp.getPersistentInfo()
+if isReset:
+    expInfo["nbSniffers"] = args.nbSniffers
+    exp.savePersistentInfo(expInfo)
+nbSniffers = expInfo["nbSniffers"]
+
+#--------------------------------------------------
+# Ensure that the nodes are reflashed with proper firmware
 
 currentNodeList = nodeList
 
-borderRouterList, currentNodeList = IotlabHelper.ensurePersistentFlashNodes(
-    exp, expInfo, "BorderRouter", BorderRouterFwFileName, 1, currentNodeList)
+borderRouterList, currentNodeList = exp.ensureFlashedNodes(
+    "BorderRouter", BorderRouterFwFileName, 1, currentNodeList)
 assert len(borderRouterList) == 1
 borderRouterNode = borderRouterList[0]
 
-nodeRouterList, currentNodeList = IotlabHelper.ensurePersistentFlashNodes(
-    exp, expInfo, "HttpRplNode", NodeFwFileName, AllPossibleNodes, 
+random.seed(0)
+random.shuffle(currentNodeList) # we want to take random nodes as sniffers
+
+if nbSniffers > 0:
+    snifferList, currentNodeList = exp.ensureFlashedNodes(
+        "Sniffer", SnifferFwFileName, nbSniffers, currentNodeList)
+    assert len(snifferList) == nbSniffers
+else:
+    snifferList = []
+
+nodeRouterList, currentNodeList = exp.ensureFlashedNodes(
+    "HttpRplNode", NodeFwFileName, AllPossibleNodes, 
     currentNodeList)
 
 #--------------------------------------------------
+# Stop all nodes
+
+#exp.doNodeCmd("stop", IotlabHelper.AllList)
+
+#--------------------------------------------------
+# Start ssh forwarding, tunslip, and reset all nodes
+#
+# XXX: this is messy, use an interface
 
 processManager = IotlabHelper.ProcessManager()
 processManager.setWindowTitle("Contiki RPL Experiment")
 
-#
 TunnelPort = 2000
-tunslipCommand = ("sudo " +TunslipBinFileName+" aaaa::1/64 -L -a localhost"
-                  + " -p %s"% TunnelPort)
 sshTunnelCommand = "ssh -T %s@%s -L %s:%s:%s 'echo FORWARDING PORTS ; sleep 600000'" % (
     iotlabHelper.userName, expServer, TunnelPort, borderRouterNode, 
     IotlabHelper.SerialTcpPort)
 processManager.startSubProcessInTerm("ssh Tunnel to IoT-LAB", sshTunnelCommand)
-time.sleep(10)
+
+raw_input("Will run tunslip6. Press any key to continue: ")
+tunslipCommand = ("sudo " +TunslipBinFileName+" aaaa::1/64 -L -a localhost"
+                  + " -p %s"% TunnelPort)
 processManager.startSubProcessInTerm("Contiki tunslip6", tunslipCommand)
+
+TunnelSnifferStartPort = 3000
+sshRedirectPortList = [ 
+    "-L %s:%s:%s" % (TunnelSnifferStartPort+i, snifferNode, 
+                     IotlabHelper.SerialTcpPort)
+    for i, snifferNode in enumerate(snifferList) ]
+sshRedirectPortStr = " ".join(sshRedirectPortList)
+sshSnifferTunnelCommand = "ssh -T %s@%s %s 'echo FORWARDING Sniffer PORTS ; sleep 600000'" % (
+    iotlabHelper.userName, expServer, sshRedirectPortStr)
+#print sshSnifferTunnelCommand
+processManager.startSubProcessInTerm("ssh tunnels for sniffers to IoT-LAB", 
+                                     sshSnifferTunnelCommand)
+
+raw_input("Will run socat. Press any key to continue: ")
+for i, snifferNode in enumerate(snifferList):
+    port = TunnelSnifferStartPort+i
+    link = "/tmp/mytty%d" % i
+    cmd = "socat TCP4:127.0.0.1:%s pty,link=%s,raw" % (port, link)
+    processManager.startSubProcessInTerm(
+        "SOCAT %s :%s" % (snifferNode, port), cmd)
+
+raw_input("Will run foren6: ")
+cmd = "cd ../foren6 && make run"
+processManager.startSubProcessInTerm("foren6", cmd)
+
+raw_input("Will reset all nodes. Press any key to continue: ")
+exp.doNodeCmd("reset", IotlabHelper.AllList)
+
 time.sleep(1000)
-
-# evenNodeList = [ address for address in nodeList 
-#                  if extractNodeId(address)%2 == 0 ]
-# oddNodeList = list(set(nodeList).difference(evenNodeList))
-
-
-# if len(oddNodeList) < 2:
-#     sys.stderr.write("Error: need at least 2 nodes for RPL (with odd id)")
-#     sys.exit(1)
-# if len(evenNodeList) == 0:
-#     sys.stderr.write("Error: need at least 1 node for sniffer (with even id)")
-#     sys.exit(1)
-
-
-# borderRouter = oddNodeList[0]
-# rplNodeList = oddNodeList[1:]
-# snifferList = evenNodeList
-
-
-# rplNodeFw = IotlabHelper.readFile(NodeFwFileName)
-
-# snifferFw = IotlabHelper.readFile(SnifferFwFileName)
-
-# def reprNodeList(addressList):
-#     return ", ".join([address.split(".")[0] for address in addressList])
-
-# specList = [
-#     ("border router", [borderRouter], borderRouterFw),
-#     ("rpl/http-server node", rplNodeList, rplNodeFw),
-#     ("sniffer (for foren6)", snifferList, snifferFw)
-#     ]
-
-# print "-- flashing nodes"
-# for (category, nodeList, firmwareData) in specList:
-#     print "%s: %s"%(category, reprNodeList(nodeList))
-#     result = exp.doNodeCmd("update", nodeList, firmwareData)
-#     print (result)
-
-#print exp.doNodeCmd("reset", IotlabHelper.AllList)
 
 #---------------------------------------------------------------------------
