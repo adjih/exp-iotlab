@@ -193,7 +193,7 @@ ensure-local-profile: local/src/local.profile
 
 local/src/local.profile: Makefile
 	(echo "# Automagically generated" ; \
-	echo "PATH=${GCCARMDIR}:${GCCMSPDIR}:${CURDIR}/local/bin:$$PATH" ; \
+	echo "PATH=${GCCARMDIR}:${GCCMSPDIR}:${CURDIR}/iot-lab/parts/cli-tools:${CURDIR}/local/bin:$$PATH" ; \
 	echo "export PATH") > $@
 
 #===========================================================================
@@ -247,11 +247,19 @@ OPENWSN_SIM_OBJ=openwsn/openwsn-fw/firmware/openos/projects/common/oos_openwsn.s
 ensure-openwsn-sim: ${OPENWSN_SIM_OBJ}
 ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
+
 #firmware/openos/projects/common/oos_openwsn.so
+ensure-openwsn-m3: firmware/openos/projects/common/03oos_openwsn_prog-stripped
+
+firmware/openos/projects/common/03oos_openwsn_prog-stripped:
+	make build-openwsn-m3
 
 build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
-        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
+        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn \
+        && arm-none-eabi-strip \
+               firmware/openos/projects/common/03oos_openwsn_prog \
+            -o firmware/openos/projects/common/03oos_openwsn_prog-stripped
 
 build-openwsn-a8-m3: ensure-openwsn-build-deps
 
@@ -301,7 +309,10 @@ ensure-riot-build-deps: \
    ensure-all-riot ensure-gcc-arm ensure-local-profile
 
 build-riot-helloworld: ensure-riot-build-deps 
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make \
+	&& arm-none-eabi-strip \
+                 bin/iot-lab_M3/hello-world.elf \
+              -o bin/iot-lab_M3/hello-world-stripped.elf
 
 build-riot-rpl-udp: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
@@ -309,11 +320,14 @@ build-riot-rpl-udp: ensure-riot-build-deps
 ensure-riot-defaultprog: \
     riot/RIOT/examples/default/bin/iot-lab_M3/default.elf
 
-riot/RIOT/examples/default/bin/iot-lab_M3/default.elf:
+riot/RIOT/examples/default/bin/iot-lab_M3/default-stripped.elf:
 	make build-riot-defaultprog
 
 build-riot-defaultprog: ensure-riot-build-deps
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make \
+	&& arm-none-eabi-strip \
+              bin/iot-lab_M3/default.elf \
+           -o bin/iot-lab_M3/default-stripped.elf
 
 #===========================================================================
 #===========================================================================
@@ -366,6 +380,8 @@ ensure-contiki-rpl-samples: \
 # Foren6
 #===========================================================================
 #===========================================================================
+
+#212-214+216+219-220+222+226-227+231-232+234-237+239+241-242+244-246+248+253-254+257-258+260+262-265+267+271-273+278+280+282+285+288-289
 
 # https://github.com/cetic/foren6
 
@@ -582,10 +598,12 @@ contiki-rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
    ensure-all-iot-lab
 
+run-contiki-rpl-experiment: contiki-rpl-exp-deps
+	cd tools && python ExpContikiRpl.py --site grenoble --nb 10
+
+#---------------------------------------------------------------------------
+
 riot-rpl-exp-deps: \
    ensure-all-iot-lab
-
-run-contiki-rpl-experiment: contiki-rpl-exp-deps
-	cd tools && python ContikiRplExp.py grenoble 10
 
 #---------------------------------------------------------------------------

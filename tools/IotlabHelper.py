@@ -111,6 +111,13 @@ class IotlabExp:
             else: 
                 raise IotlabException("Experiment cannot be 'Running'", state)
 
+    def getNodeList(self):
+        # XXX: should cache getRessources
+        expInfo = self.getResources()
+        addressList = [nodeInfo["network_address"] 
+                       for nodeInfo in expInfo["items"]]
+        return addressList
+
 
 def getNodePerServer(addressList):
     nodeOfServer = {}
@@ -126,6 +133,18 @@ def getNodePerServer(addressList):
 def readFile(fileName):
     with open(fileName) as f:
         return f.read()
+
+#--------------------------------------------------
+
+NameEmptyProfileM3 = "default_m3_rest"
+
+EmptyProfileM3 = {
+    "consumption": None,
+    "nodearch": "m3",
+    "power": "dc", 
+    "profilename": NameEmptyProfileM3,
+    "radio": None
+}
 
 #--------------------------------------------------
 
@@ -169,19 +188,41 @@ class IotlabHelper:
         expInfoList = self.getExpInfoList(stateList)
         return [self._makeExp(expInfo["id"]) for expInfo in expInfoList]
 
-    def startExp(self, name, duration, site, nbNode, archi="m3:at86rf231"):
+    def startExp(self, name, duration, site, nbNode, archi="m3:at86rf231",
+                 profileName=None):
         self.ensureExpLimit() # sanity check - avoid bugs and 'fork bombs'
-        exp = experiment.Experiment(name, duration, reservation=None)
 
-        exp.type = "alias"
-        exp.set_alias_nodes("1", nbNode, {
-                "mobile": False,
-                "archi": archi,
-                "site": site
-                })
-        exp_files = {
-            "new_exp.json": objToJson(exp)
-            }
+        #exp = experiment.Experiment(name, duration, reservation=None)
+        #exp.type = "alias"
+        #exp.set_alias_nodes("1", nbNode, {
+        #        "mobile": False,
+        #        "archi": archi,
+        #        "site": site
+        #        })
+        #exp_files = {
+        #    "new_exp.json": objToJson(exp)
+        #    }
+
+        #'firmwareassociations': [{'firmwarename': 'hello-world-stripped.elf',
+        # 'nodes': ['1']}]
+
+        #if profileName == None:
+        #    profileName = self.ensureEmptyProfile()
+
+        info = {'duration': duration,
+                'firmwareassociations': None,
+                'name': name,
+                'nodes': [{'alias': '1',
+                            'nbnodes': nbNode,
+                            'properties': {'archi': archi,
+                                            'mobile': False,
+                                            'site': site}}],
+                'profileassociations': None,
+                #[{'nodes': ['1'], 'profilename': profileName}],
+                'reservation': None,
+                'type': 'alias'}
+
+        exp_files = { "new_exp.json": toJson(info) }
 
         resultJson = self.request.submit_experiment(exp_files)
         result = fromJson(resultJson)
@@ -201,6 +242,28 @@ class IotlabHelper:
     def error(self, message):
         sys.stderr.write("ERROR: "+message+"\n")
         sys.exit(1)
+
+    #--------------------------------------------------
+
+    def getProfileList(self):
+        return fromJson(self.request.get_profiles())
+
+    def addProfile(self, profileName, profileInfo):
+        profileJson = toJson(profileInfo)
+        self.request.add_profile(profileName, profileJson)
+
+    def getProfile(self, name):
+        return fromJson(self.requests.get_profile(name))
+        
+    def ensureEmptyProfile(self):
+        profileList = self.getProfileList()
+        for profile in profileList:
+            if profile["profilename"] == NameEmptyProfileM3:
+                return profile # success
+        self.addProfile(NameEmptyProfileM3, EmptyProfileM3)
+        return NameEmptyProfileM3
+
+    #--------------------------------------------------
 
 #---------------------------------------------------------------------------
 # More utilities functions
@@ -249,6 +312,7 @@ DefaultNbNode = 3
 DefaultDuration = 10 # minutes
 
 def parserAddTypicalArgs(parser):
+    parser.add_argument("--name", default="rest")
     parser.add_argument("--site", default=DefaultSite)
     parser.add_argument("--nb", type=int, default=DefaultNbNode)
     parser.add_argument("--duration", type=int, default=DefaultDuration)
@@ -259,7 +323,7 @@ def ensureExperimentFromArgs(args):
     expList = iotlab.getExpList()
     if len(expList) == 0:
         print ("- No experience, starting one")
-        exp = iotlab.startExp("RiotRplRest", args.duration, args.site, args.nb)
+        exp = iotlab.startExp(args.name, args.duration, args.site, args.nb)
     else:
         print ("- Re-using already running experiment")
         exp = expList[0]
@@ -281,9 +345,16 @@ if __name__ == "__main__":
                                          "toLaunch"])
     pprint.pprint(expInfoList)
 
+    print "--- List of profiles"
+    profileList = iotlab.getProfileList()
+    pprint.pprint(profileList)
+
+    profileName = iotlab.ensureEmptyProfile()
+    print profileName
+
     sys.exit(0)
 
-    expList = iotlab.getExpList()
+    #expList = iotlab.getExpList()
 
 #---------------------------------------------------------------------------
 # Not used

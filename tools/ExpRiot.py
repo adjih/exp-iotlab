@@ -9,7 +9,9 @@ import IotlabHelper
 
 #---------------------------------------------------------------------------
 
-RiotFirmwareFileName = "../riot/RIOT/examples/default/bin/iot-lab_M3/default.elf"
+# experiment-cli submit -d 5 -l 5,archi=m3:at86rf231+site=grenoble,hello-world-stripped.elf,default_m3_rest
+
+RiotFirmwareFileName = "../riot/RIOT/examples/default/bin/iot-lab_M3/default-stripped.elf"
 
 #---------------------------------------------------------------------------
 
@@ -26,9 +28,9 @@ args = parser.parse_args()
 iotlabHelper, exp = IotlabHelper.ensureExperimentFromArgs(args)
 
 print ("- Reflashing nodes")
-#firmwareData = IotlabHelper.readFile(RiotFirmwareFileName)
-#result = exp.doNodeCmd("update", IotlabHelper.AllList, firmwareData)
-#print (result)
-print exp.doNodeCmd("reset", IotlabHelper.AllList)
+firmwareData = IotlabHelper.readFile(RiotFirmwareFileName)
+result = exp.doNodeCmd("update", IotlabHelper.AllList, firmwareData)
+print (result)
+#print exp.doNodeCmd("reset", IotlabHelper.AllList)
 
 #---------------------------------------------------------------------------
