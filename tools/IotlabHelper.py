@@ -12,24 +12,19 @@ from iotlabcli import rest, helpers, experiment
 
 #---------------------------------------------------------------------------
 
-def getCredentialsOrFail(parser):
-    """return (name, password) from file, or exit if not available"""
-    (name, password) = helpers.read_password_file(parser)
-    if name == None or password == None:
-        parser.error("stored .iotlabrc not available, use auth-cli (or make run-auth-cli)")
-        sys.exit(1)
-    return name, password
-
-#def getServerUrl():
-#    if os.path.exists("iotlab.url") and "--dev" in sys.argv:
-#        url = readFile("iotlab.url").strip()
-#    else: url = rest.API_URL # XXX 
-#    return url
-
-def getServerUrl():
-    return rest.API_URL # XXX
+SerialTcpPort = 20000
 
 #---------------------------------------------------------------------------
+
+def readFile(fileName):
+    with open(fileName) as f:
+        return f.read()
+
+def writeFile(fileName, data):
+    with open(fileName, "w") as f:
+        f.write(data)
+
+#--------------------------------------------------
 
 def objToJson(info):
     return json.dumps(info, cls=rest.Encoder)
@@ -40,6 +35,20 @@ def toJson(info):
 def fromJson(jsonStr):
     return json.loads(jsonStr)
 
+#---------------------------------------------------------------------------
+
+def getCredentialsOrFail(parser):
+    """return (name, password) from file, or exit if not available"""
+    (name, password) = helpers.read_password_file(parser)
+    if name == None or password == None:
+        parser.error("stored .iotlabrc not available, use auth-cli (or make run-auth-cli)")
+        sys.exit(1)
+    return name, password
+
+def getServerUrl():
+    return rest.API_URL # XXX
+
+#---------------------------------------------------------------------------
 #---------------------------------------------------------------------------
 
 class IotlabException(Exception):
@@ -57,6 +66,8 @@ ExpStateList = ["Running", "Waiting", "Error", "Terminated", "Launching",
                 "toLaunch"] # XXX: check this list
 
 AllList = ("AllList",) # All nodes
+
+ExperimentTemplateDir = "Experiment-%s"
 
 class IotlabExp:
     def __init__(self, helper, expId):
@@ -101,7 +112,7 @@ class IotlabExp:
         while True:
             state = self.getState()
             if verbose: 
-                print "state:", state
+                print "  state:", state
             time.sleep(delay)
             delay = min(delay * 1.5, 20)
             if state == "Running":
@@ -119,6 +130,120 @@ class IotlabExp:
         return addressList
 
 
+    #------------------------------
+    # Experiment Storage
+    #------------------------------
+
+    PersistentPath = "persistent.json"
+
+    def ensureDir(self):
+        expDir = self.getPath("")
+        if not os.path.exists(expDir):
+            os.mkdir(expDir)
+
+    def getPath(self, subPath):
+        prefix = ExperimentTemplateDir % self.expId
+        if subPath == "":
+            return prefix
+        else: return os.path.join(prefix, subPath)
+
+    def hasFile(self, subPath):
+        return os.path.exists(self.getPath(subPath))
+
+    def readFile(self, subPath):
+        return readFile(self.getPath(subPath))
+        
+    def writeFile(self, subPath, data):
+        self.ensureDir()
+        return writeFile(self.getPath(subPath), data)
+
+    def loadPersistentInfo(self):
+        if not self.hasFile(self.PersistentPath):
+            return {}
+        else: return fromJson(self.readFile(self.PersistentPath))
+
+    def savePersistentInfo(self, info):
+        self.writeFile(self.PersistentPath, toJson(info))
+
+
+#--------------------------------------------------
+
+class IotlabPersistentExp(IotlabExp):
+    def __init__(self, helper, expId):
+        IotlabExp.__init__(helper)
+    # XXX: Refactor
+
+#--------------------------------------------------
+
+def reprNodeList(nodeList):
+    return ",".join([address.split(".")[0] for address in nodeList])
+
+AllPossibleNodes = ('AllNodes',)
+
+def safeFlashNodes(exp, firmwareFileName, nodeCount, initialNodeList, 
+                   verbose=True):
+    """Flash nodes until the exact `nodeCount' is reached
+    using the order of `initialNodeList'.
+    If `nodeCount' is None, all nodes are flashed once."""
+    countDown = 30 
+    nodeList = initialNodeList[:]
+    flashedNodeList = []
+    if verbose:
+        print "- flashing %s nodes with '%s'" % (nodeCount, firmwareFileName)
+    assert nodeCount > 0
+    firmwareData = IotlabHelper.readFile(firmwareFileName)
+    if nodeCount == AllPossibleNodes:
+        nodeCount = len(nodeList)
+        tryOnce = True
+    else: tryOnce = False
+    while nodeCount > len(flashedNodeList):
+        countDown -= 1
+        if countDown == 0: # don't flash forever
+            raise RuntimeError("Too many flash attempts", countDown)
+        if nodeCount > len(nodeList):
+            raise RuntimeError("Not enough available nodes in experiment", 
+                               (nodeList, nodeCount))
+        tentativeNodeList = nodeList[:nodeCount]
+        nodeList = nodeList[nodeCount:]
+        if verbose:
+            sys.stdout.write("  . flashing %s:" % reprNodeList(
+                    tentativeNodeList))
+            sys.stdout.flush()
+        result = exp.doNodeCmd("update", tentativeNodeList, firmwareData)
+        successfulNodeList = result.get('0', [])
+        failedNodeList = result.get('1', [])
+        print " success=%s failure=%s" % (reprNodeList(successfulNodeList),
+                                          reprNodeList(failedNodeList))
+        flashedNodeList.extend(successfulNodeList)
+        nodeCount -= len(successfulNodeList)
+        if tryOnce:
+            break
+
+    return flashedNodeList, nodeList
+
+def ensurePersistentFlashNodes(exp, expInfo, nodeTypeName, 
+                               firmwareFileName, nodeCount, initialNodeList):
+    if nodeTypeName not in expInfo:
+        flashedNodeList, currentNodeList = safeFlashNodes(
+            exp, firmwareFileName, nodeCount, initialNodeList)
+        assert (nodeCount == AllPossibleNodes 
+                or len(flashedNodeList) == nodeCount)
+        expInfo[nodeTypeName] = flashedNodeList
+        exp.savePersistentInfo(expInfo)
+    else:
+        flashedNodeList = expInfo[nodeTypeName]
+        currentNodeList = initialNodeList[:]
+        if len(flashedNodeList) != nodeCount and nodeCount != AllPossibleNodes:
+            raise RuntimeError("Inconsistent number of flashed nodes",
+                               (flashedNodeList, nodeCount))
+        print ". using already flashed '%s'" % reprNodeList(flashedNodeList)
+    for address in flashedNodeList:
+        if address in currentNodeList:
+            currentNodeList.remove(address)
+    return flashedNodeList, currentNodeList
+
+#--------------------------------------------------
+
 def getNodePerServer(addressList):
     nodeOfServer = {}
     for address in addressList:
@@ -129,10 +254,6 @@ def getNodePerServer(addressList):
             nodeOfServer[server] = []
         nodeOfServer[server].append(name)
     return nodeOfServer
-
-def readFile(fileName):
-    with open(fileName) as f:
-        return f.read()
 
 #--------------------------------------------------
 
@@ -328,9 +449,70 @@ def ensureExperimentFromArgs(args):
         print ("- Re-using already running experiment")
         exp = expList[0]
 
-    print ("- Experiment id=%s" % exp.expId, exp.getState())
+    print ("  experiment id=%s" % (exp.expId))
     exp.waitUntilRunning(verbose=True)
     return iotlab, exp
+
+#---------------------------------------------------------------------------
+# Copied from contiki-senslab-unified/tools/cooja/jython/PySimul.py
+# (I wrote in 2012-2013) and modified
+# XXX: maybe should use python circus?
+#--------------------------------------------------
+
+class ProcessManager:
+    ROXTerm = "/usr/bin/roxterm"
+
+    def __init__(self):
+        self.processList = []
+        self.isFirstTerm = True
+        self.windowTitle = None
+
+    def setWindowTitle(self, windowTitle):
+        self.windowTitle = windowTitle
+
+    def startSubProcessInTerm(self, tabTitle, command, bgColor="White"):
+        command += " ; printf '<done>' ; sleep 10" # so that error can be seen
+        if os.path.exists(self.ROXTerm):
+            argList = [self.ROXTerm] 
+            if self.isFirstTerm:
+                # http://sourceforge.net/p/roxterm/discussion/422639/thread/e550bfb1/?limit=50
+                argList.append("--fork")
+                self.isFirstTerm = False
+            else: argList.append("--tab")
+
+            if self.windowTitle == None:
+                self.windowTitle = "Experiment"
+            argList += ["-T", self.windowTitle] 
+            argList += [ "-n", tabTitle, "-e", "bash", "-c", command]
+
+        else:
+            argList = ["xterm", 
+                       "-bg", bgColor, "-fg", "NavyBlue",
+                       "-T", tabTitle,
+                       "-e", "bash -c '%s'" % command]
+        newProcess = subprocess.Popen(args=argList, shell=False)
+        self.processList.append(newProcess)
+
+    def addSubProcess(self, process):
+        # XXX: this does not kill subprocess terms
+        self.processList.append(process)
+
+    def killEachSubProcess(self):
+        for process in self.processList:
+            process.terminate()
+            del process
+
+        self.processList = []
+
+def testProcessManager():
+    processManager = ProcessManager()
+    processManager.setWindowTitle("ProcessManager test")
+    processManager.startSubProcessInTerm("Do-sleep-5", "sleep 5")
+    processManager.startSubProcessInTerm("Do-sleep-10", "sleep 10")
+    processManager.startSubProcessInTerm("Do-sleep-20", "sleep 20")
+    import time
+    time.sleep(15)
+    processManager.killEachSubProcess()
 
 #---------------------------------------------------------------------------
 

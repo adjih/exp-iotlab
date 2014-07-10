@@ -41,7 +41,7 @@ GCCARMDIR=${CURDIR}/local/gcc-arm-none/bin
 ensure-gcc-arm: local/gcc-arm-none/bin/arm-none-eabi-gcc
 
 local/download/${GCCARMPKG}: ensure-pkg-wget
-	test -e local || make local
+	make ensure-local-dirs
 	cd local/download && wget https://launchpad.net/gcc-arm-embedded/4.8/4.8-2014-q2-update/+download/${GCCARMPKG}
 
 local/gcc-arm-none/bin/arm-none-eabi-gcc: 
@@ -171,6 +171,22 @@ prepare-openlab: ensure-pkg-cmake ensure-pkg-g++ ensure-openlab
 
 #---------------------------------------------------------------------------
 
+USE_OPENLAB_DEFS=. ${CURDIR}/local/src/local.profile
+
+OPENLAB_EXAMPLE=example_soft_timer_delay
+
+ensure-openlab-example-m3: \
+  iot-lab/parts/openlab/build.m3/bin/${OPENLAB_EXAMPLE}.elf
+
+iot-lab/parts/openlab/build.m3/bin/${OPENLAB_EXAMPLE}.elf:
+	make build-openlab-example-m3
+
+build-openlab-example-m3: ensure-openlab-prepare
+	${USE_OPENLAB_DEFS} && cd iot-lab/parts/openlab/build.m3 \
+         && make ${OPENLAB_EXAMPLE}
+
+#---------------------------------------------------------------------------
+
 build-tutorial-m3: ensure-openlab-prepare
 	export PATH=${GCCARMDIR}:${PATH} \
         && cd iot-lab/parts/openlab/build.m3 && make tutorial_m3 PATH=$$PATH
@@ -249,17 +265,14 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
 
 #firmware/openos/projects/common/oos_openwsn.so
-ensure-openwsn-m3: firmware/openos/projects/common/03oos_openwsn_prog-stripped
+ensure-openwsn-m3: firmware/openos/projects/common/03oos_openwsn_prog
 
-firmware/openos/projects/common/03oos_openwsn_prog-stripped:
+firmware/openos/projects/common/03oos_openwsn_prog:
 	make build-openwsn-m3
 
 build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
-        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn \
-        && arm-none-eabi-strip \
-               firmware/openos/projects/common/03oos_openwsn_prog \
-            -o firmware/openos/projects/common/03oos_openwsn_prog-stripped
+        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
 
 build-openwsn-a8-m3: ensure-openwsn-build-deps
 
@@ -296,12 +309,18 @@ ensure-riot-board: riot/thirdparty_boards
 riot/thirdparty_boards:
 	make ensure-riot
 	git clone ${GIT_RIOT_BOARD} riot/thirdparty_boards
+	cd riot/thirdparty_boards/iot-lab_M3/include \
+        && mv board.h board.h-orig \
+        && sed s/115200/500000/g < board.h-orig > board.h
 
 ensure-riot-cpu: riot/thirdparty_cpu
 
 riot/thirdparty_cpu:
 	make ensure-riot
 	git clone ${GIT_RIOT_CPU} riot/thirdparty_cpu
+	cd riot/thirdparty_cpu \
+	&& git checkout -b thomaseichinger-fix_stm32f1 master \
+	&& git pull --no-edit git@github.com:thomaseichinger/thirdparty_cpu.git fix_stm32f1
 
 ensure-all-riot: ensure-riot ensure-riot-board ensure-riot-cpu
 
@@ -309,10 +328,7 @@ ensure-riot-build-deps: \
    ensure-all-riot ensure-gcc-arm ensure-local-profile
 
 build-riot-helloworld: ensure-riot-build-deps 
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make \
-	&& arm-none-eabi-strip \
-                 bin/iot-lab_M3/hello-world.elf \
-              -o bin/iot-lab_M3/hello-world-stripped.elf
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make
 
 build-riot-rpl-udp: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
@@ -320,14 +336,11 @@ build-riot-rpl-udp: ensure-riot-build-deps
 ensure-riot-defaultprog: \
     riot/RIOT/examples/default/bin/iot-lab_M3/default.elf
 
-riot/RIOT/examples/default/bin/iot-lab_M3/default-stripped.elf:
+riot/RIOT/examples/default/bin/iot-lab_M3/default.elf:
 	make build-riot-defaultprog
 
 build-riot-defaultprog: ensure-riot-build-deps
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make \
-	&& arm-none-eabi-strip \
-              bin/iot-lab_M3/default.elf \
-           -o bin/iot-lab_M3/default-stripped.elf
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
 
 #===========================================================================
 #===========================================================================
@@ -367,7 +380,25 @@ build-contiki-border-router-%: ensure-contiki-build-deps
 
 ensure-contiki-rpl-samples: \
     ensure-contiki-http-server-m3 ensure-contiki-border-router-m3 \
-    ensure-contiki-http-server-a8-m3 ensure-contiki-border-router-a8-m3
+    ensure-contiki-http-server-a8-m3 ensure-contiki-border-router-a8-m3 \
+    ensure-contiki-tunslip6-bin
+
+ensure-contiki-tunslip6-bin: local/bin/tunslip6
+
+local/bin/tunslip6:
+	make really-ensure-local-dirs ensure-contiki-tunslip6-src
+	gcc local/src/tunslip6.c -o $@
+
+ensure-contiki-tunslip6-src: local/src/tunslip6.c
+
+local/src/tunslip6.c:
+	make really-ensure-local-dirs ensure-pkg-wget
+	wget https://github.com/iot-lab/contiki/raw/master/tools/tunslip6.c \
+             -O $@
+
+really-ensure-local-dirs: 
+	for i in local local/src local/bin local/download ; do \
+             test -e $$i || mkdir $$i ; done
 
 #build-contiki-border-router-a8-m3: ensure-all-iot-lab ensure-openlab-prepare \
 #         ensure-gcc-arm
@@ -596,7 +627,8 @@ ${HOME}/.iotlabrc:
 
 contiki-rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
-   ensure-all-iot-lab
+   ensure-all-iot-lab \
+   ensure-pkg-roxterm ensure-pkg-wireshark ensure-pkg-paramiko
 
 run-contiki-rpl-experiment: contiki-rpl-exp-deps
 	cd tools && python ExpContikiRpl.py --site grenoble --nb 10

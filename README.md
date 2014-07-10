@@ -33,26 +33,44 @@ For more automation, two parts are added (really a byproduct):
 
 # Experiments
 
-
 ```
-
+TODO
 ```
-
-
-
 
 ---------------------------------------------------------------------------
 
 # Automatic Download/Install/Compilation
 
-A `Makefile` is provided that attempt to automatically download the
+A `Makefile` is provided that attempts to automatically download the
 requirements for different experiments. 
 NOTE: the Makefile is far from being a well-thought Makefile that
-would automatically recompile 
+would properly automatically recompile on any change.
 
 This is done because testing
 different IoT systems (RIOT, OpenWSN, Contiki) on IoT-LAB requires
 a bit of manual work, and I was too lazy to repeat it several times :)
+
+```
+TODO
+```
+
+## 
+
+```
+TODO
+```
+
+## OpenWSN
+
+```
+TODO
+```
+
+## RIOT
+
+```
+TODO
+```
 
 ---------------------------------------------------------------------------
 
@@ -86,21 +104,22 @@ cd tools/system
 sudo ./create-schroot.sh
 ```
 
-This will:
-* Install schroot (if not installed), and update the configuration
+This will perform the following steps:
+* it will install schroot if not installed, and update the configuration
   file for the following (name: `trusty`).
   
-* Install a Ubuntu-14.04 (Trusty Tahr) distribution in your home directory 
+* it will install a Ubuntu-14.04 (Trusty Tahr) distribution in your home directory 
   ${HOME}/System-Ubuntu-14.04.
 
-* Install a few more packages for that Ubuntu.
+* it will install a few more packages for that Ubuntu.
 
 ## How to use ?
 
 Once installed, you can just switch to that environment with:
 
 ```
-schroot -c trusty```
+schroot -c trusty
+```
 
 Your home directory will be available as usual (due to schroot configuration), 
 but otherwise the system will be the one is $HOME/System-Ubuntu-14.04

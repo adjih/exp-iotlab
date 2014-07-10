@@ -33,7 +33,7 @@ apt-get update || exit 1
 apt-get install -y git make vim jed \
     wget cmake g++ tshark qt4-qmake libpcap0.8-dev libexpat1-dev \
     libqt4-dev python-dev scons python-bottle python-serial python-tk \
-  gcc-msp430 || exit 1
+  gcc-msp430 roxterm || exit 1
 
 if [ `arch` = x86_64 ] ; then
   # http://www.unixmen.com/enable-32-bit-support-64-bit-ubuntu-13-10-greater/
