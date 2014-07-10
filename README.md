@@ -42,7 +42,7 @@ _This is not working for now (for me) because of SSH_AGENT_PID etc._
 Ubuntu 14.04:
 ```
 git clone https://github.com/adjih/exp-iotlab.git
-cd exp-iotlab/tools/system && ./create-schroot.sh
+cd exp-iotlab/tools/system && sudo ./create-schroot.sh
 ```
 
 3) Start your schroot-ed Ubuntu 14.04:
