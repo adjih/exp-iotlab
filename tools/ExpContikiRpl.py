@@ -21,12 +21,13 @@ NodeFwFileName = "../iot-lab/parts/contiki/examples/ipv6/http-server/http-server
 BorderRouterFwFileName = "../iot-lab/parts/contiki/examples/ipv6/rpl-border-router/border-router.iotlab-m3"
 SnifferFwFileName = "../iot-lab/parts/openlab/build.m3/bin/foren6_sniffer.elf"
 
-NodeFwFileName = "PreCompiled/http-server.iotlab-m3"
-BorderRouterFwFileName = "PreCompiled/border-router.iotlab-m3"
-SnifferFwFileName = "PreCompiled/foren6_sniffer.elf"
+#NodeFwFileName = "PreCompiled/http-server.iotlab-m3"
+#BorderRouterFwFileName = "PreCompiled/border-router.iotlab-m3"
+#SnifferFwFileName = "PreCompiled/foren6_sniffer.elf"
 
 #
-TunslipBinFileName = "sudo ../local/bin/tunslip6 aaaa::1/64 -L -a localhost -p 2000"
+#TunslipBinFileName = "sudo ../local/bin/tunslip6 aaaa::1/64 -L -a localhost -p 2000"
+TunslipBinFileName = "../local/bin/tunslip6"
 
 #---------------------------------------------------------------------------
 

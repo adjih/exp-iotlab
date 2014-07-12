@@ -3,7 +3,7 @@
 # - download tools (cross-compilers)
 # - ensure proper packages (Ubuntu)
 #---------------------------------------------------------------------------
-# Cedric Adjih - Inria 2014
+# Cedric Adjih - Inria - 2014
 #---------------------------------------------------------------------------
 
 # All repositories variables are set in:
@@ -288,6 +288,10 @@ build-openwsn-a8-m3: ensure-openwsn-build-deps
 run-openwsn-sim: ensure-openwsn-sim ensure-openwsn-build-deps
 	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb --sim
 
+run-openwsn-web: ensure-openwsn-build-deps
+	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb
+
+
 #===========================================================================
 #===========================================================================
 # RIOT-OS
@@ -414,6 +418,21 @@ really-ensure-local-dirs:
 #        && cd iot-lab/parts/contiki/examples/ipv6/rpl-border-router \
 #        && make TARGET=iotlab-a8-m3
 
+#---------------------------------------------------------------------------
+
+CONTIKI_EXAMPLE_ABC_PREFIX=iot-lab/parts/contiki/examples/rime/example-abc-fast.iotlab
+#CONTIKI_EXAMPLE_ABC_PREFIX=iot-lab/parts/contiki/examples/rime/example-abc.iotlab
+
+ensure-contiki-example-abc-m3: ${CONTIKI_EXAMPLE_ABC_PREFIX}-m3
+ensure-contiki-example-abc-a8-m3: ${CONTIKI_EXAMPLE_ABC_PREFIX}-a8-m3
+
+${CONTIKI_EXAMPLE_ABC_PREFIX}-%: ; make build-contiki-example-abc-$*
+
+build-contiki-example-abc-%: ensure-contiki-build-deps
+	${USE_OPENLAB_DEFS} \
+        && cd iot-lab/parts/contiki/examples/rime \
+        && make TARGET=iotlab-$* `basename ${CONTIKI_EXAMPLE_ABC_PREFIX}-$*`
+
 #===========================================================================
 #===========================================================================
 # Foren6
@@ -466,6 +485,90 @@ build-sniffer-foren6-a8-m3:
         && PATH=${GCCARMDIR}:${PATH} make foren6_sniffer
 
 #--------------------------------------------------
+
+BIN_SNIFFER_ZEP_M3=iot-lab/parts/openlab/build.m3/bin/zep_sniffer.elf
+BIN_SNIFFER_ZEP_A8_M3=iot-lab/parts/openlab/build.a8-m3/bin/zep_sniffer.elf
+
+ensure-sniffer-zep: ${BIN_SNIFFER_ZEP_M3} ${BIN_SNIFFER_ZEP_A8_M3}
+
+build-sniffer-zep:
+	make build-sniffer-zep-m3 build-sniffer-zep-a8-m3
+
+${BIN_SNIFFER_ZEP_M3}: ; make build-sniffer-zep-m3
+
+${BIN_SNIFFER_ZEP_A8_M3}: ; make build-sniffer-zep-a8-m3
+
+build-sniffer-zep-m3:
+	make ensure-openlab-prepare ensure-gcc-arm
+	cd iot-lab/parts/openlab/build.m3 \
+        && PATH=${GCCARMDIR}:${PATH} make zep_sniffer
+
+build-sniffer-zep-a8-m3:
+	make ensure-openlab-prepare ensure-gcc-arm
+	cd iot-lab/parts/openlab/build.a8-m3 \
+        && PATH=${GCCARMDIR}:${PATH} make zep_sniffer
+
+
+#===========================================================================
+#===========================================================================
+# Direct flashing
+#===========================================================================
+#===========================================================================
+
+#---------------------------------------------------------------------------
+# You need to have a real node connected through USB to do this:
+
+FLASHCMD=${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw/firmware/openos/bsp/boards/iot-lab_M3/tools && ./flash.sh
+
+direct-flash-openwsn-m3: ensure-openwsn-m3
+	${FLASHCMD} ../../../../../../firmware/openos/projects/common/03oos_openwsn_prog
+
+IOTLAB_EX1=iot-lab/parts/openlab/build.m3/bin/example_soft_timer_delay.elf
+
+direct-flash-openlab-example-m3: ensure-openlab-example-m3
+	${FLASHCMD} ${CURDIR}/iot-lab/parts/openlab/build.m3/bin/${OPENLAB_EXAMPLE}.elf
+	make direct-miniterm-m3
+
+direct-flash-sniffer-foren6-m3: ensure-sniffer-foren6
+	${FLASHCMD} ${CURDIR}/${BIN_SNIFFER_FOREN6_M3}
+	make direct-miniterm-m3
+
+direct-flash-sniffer-zep-m3: ensure-sniffer-zep
+	make build-sniffer-zep-m3
+	${FLASHCMD} ${CURDIR}/${BIN_SNIFFER_ZEP_M3}
+	${CURDIR}/iot-lab/parts/openlab/appli/iotlab_tests/zep_sniffer/serial2loopback.py
+
+CMDLASTM3=python ${CURDIR}/tools/misc/UsbHelper.py kludgy-last-m3
+
+direct-miniterm-m3:
+	miniterm.py `${CMDLASTM3}` 500000
+
+#direct-flash-openwsn-m3: ensure-openwsn-m3
+#	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw/firmware/openos/bsp/boards/iot-lab_M3/tools && ./flash.sh ../../../../../../firmware/openos/projects/common/03oos_openwsn_prog
+
+direct-flash-contiki-http-server-m3: ensure-contiki-http-server-m3
+	 ${FLASHCMD} ${CURDIR}/${CONTIKI_HTTP_SERVER_PREFIX}-m3
+	make direct-miniterm-m3
+
+direct-flash-contiki-border-router-m3: ensure-contiki-border-router-m3
+	 ${FLASHCMD} ${CURDIR}/${CONTIKI_BORDER_ROUTER_PREFIX}-m3
+	make direct-miniterm-m3
+
+direct-flash-contiki-example-abc-m3: ensure-contiki-example-abc-m3
+	 ${FLASHCMD} ${CURDIR}/${CONTIKI_EXAMPLE_ABC_PREFIX}-m3
+	make direct-miniterm-m3
+
+rebuild-contiki:
+	cd iot-lab/parts/contiki/examples/ipv6/http-server \
+	&& make clean -C
+
+#direct-flash-contiki-example-abc-fast-m3: ensure-contiki-example-abc-fast-m3
+#	 ${FLASHCMD} ${CURDIR}/${CONTIKI_EXAMPLE_ABC_FAST_PREFIX}-m3
+#	make direct-miniterm-m3
+
+recompile-contiki:
+	@# Used for debugging
+
 
 #===========================================================================
 #===========================================================================
