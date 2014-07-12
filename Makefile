@@ -538,10 +538,6 @@ direct-flash-sniffer-zep-m3: ensure-sniffer-zep
 	${FLASHCMD} ${CURDIR}/${BIN_SNIFFER_ZEP_M3}
 	${CURDIR}/iot-lab/parts/openlab/appli/iotlab_tests/zep_sniffer/serial2loopback.py
 
-CMDLASTM3=python ${CURDIR}/tools/misc/UsbHelper.py kludgy-last-m3
-
-direct-miniterm-m3:
-	miniterm.py `${CMDLASTM3}` 500000
 
 #direct-flash-openwsn-m3: ensure-openwsn-m3
 #	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw/firmware/openos/bsp/boards/iot-lab_M3/tools && ./flash.sh ../../../../../../firmware/openos/projects/common/03oos_openwsn_prog
@@ -566,9 +562,22 @@ rebuild-contiki:
 #	 ${FLASHCMD} ${CURDIR}/${CONTIKI_EXAMPLE_ABC_FAST_PREFIX}-m3
 #	make direct-miniterm-m3
 
-recompile-contiki:
-	@# Used for debugging
+#---------------------------------------------------------------------------
+# New commands with python (and patched OCD)
 
+CMDLASTM3=python ${CURDIR}/tools/misc/UsbHelper.py last-m3
+CMDFLASHM3=python ${CURDIR}/tools/misc/usbCmd.py flash
+
+direct-miniterm-m3:
+	miniterm.py `${CMDLASTM3}` 500000
+
+
+
+recompile-contiki:
+	@# Used for debugging XXX
+
+lsusb:
+	python tools/misc/UsbHelper.py
 
 #===========================================================================
 #===========================================================================

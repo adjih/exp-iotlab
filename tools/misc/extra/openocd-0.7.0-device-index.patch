@@ -1,0 +1,56 @@
+diff -u --recursive openocd-0.7.0-orig/src/jtag/drivers/ft2232.c openocd-0.7.0/src/jtag/drivers/ft2232.c
+--- openocd-0.7.0-orig/src/jtag/drivers/ft2232.c	2013-04-28 07:42:17.000000000 +0000
++++ openocd-0.7.0/src/jtag/drivers/ft2232.c	2014-07-12 15:15:51.144161198 +0000
+@@ -157,6 +157,7 @@
+ static uint8_t ft2232_latency = 2;
+ static unsigned ft2232_max_tck = FTDI_2232C_MAX_TCK;
+ static int ft2232_channel = INTERFACE_ANY;
++static int ft2232_device_index = 0;
+ 
+ #define MAX_USB_IDS 8
+ /* vid = pid = 0 marks the end of the list */
+@@ -2244,7 +2245,8 @@
+ 	}
+ 
+ 	/* context, vendor id, product id */
+-	if (ftdi_usb_open_desc(&ftdic, vid, pid, ft2232_device_desc, ft2232_serial) < 0) {
++	LOG_INFO("open ftdi device with device index %d", ft2232_device_index);
++	if (ftdi_usb_open_desc_index(&ftdic, vid, pid, ft2232_device_desc, ft2232_serial, ft2232_device_index) < 0) {
+ 		if (more)
+ 			LOG_WARNING("unable to open ftdi device (trying more): %s",
+ 				ftdic.error_str);
+@@ -3272,6 +3274,20 @@
+ 	return ERROR_OK;
+ }
+ 
++COMMAND_HANDLER(ft2232_handle_device_index_command)
++{
++	if (CMD_ARGC == 1) {
++		ft2232_device_index = atoi(CMD_ARGV[0]);
++		LOG_INFO("setting device index %d", ft2232_device_index);
++		if (ft2232_device_index < 0)
++			LOG_ERROR("ft2232_device_index must be > 0");
++	} else
++		LOG_ERROR("expected exactly one argument to ft2232_device_index <device_index>");
++
++	return ERROR_OK;
++}
++
++
+ static int ft2232_stableclocks(int num_cycles, struct jtag_command *cmd)
+ {
+ 	int retval = 0;
+@@ -4286,6 +4302,13 @@
+ 		.help = "set the FT2232 channel to a new value",
+ 		.usage = "value",
+ 	},
++	{
++		.name = "ft2232_device_index",
++		.handler = &ft2232_handle_device_index_command,
++		.mode = COMMAND_CONFIG,
++		.help = "set the USB device index (among those can be opened)",
++		.usage = "value",
++	},
+ 	COMMAND_REGISTRATION_DONE
+ };
+ 

@@ -89,11 +89,17 @@ def getMoteDevices():
             iface = baseDevice.find_parent(
                 subsystem="usb", device_type="usb_interface")
             if iface.attributes["bInterfaceNumber"] != "01":
+                #print "(duplicate: %s %s %s)" % (
+                #    product, baseDevice.sys_name, usbDevice.device_node)
+                # Why this happens ?
                 continue
             info = {
                 "type": "IoT-LAB M3",
                 "port": baseDevice.sys_name,
-                "variant": product
+                "variant": product,
+                #"node": usbDevice.device_node,
+                "busNum": usbDevice.attributes["busnum"],
+                "devNum": usbDevice.attributes["devnum"]
             }
             resultList.append(info)
         else:
@@ -103,7 +109,7 @@ def getMoteDevices():
 
 
 def showMoteDevices():
-    orderList = ["type", "port"]
+    orderList = ["type", "port", "variant", "busNum", "devNum"]
     def getOrder(key):
         if key in orderList:
             return orderList.index(key)
@@ -117,6 +123,7 @@ def showMoteDevices():
         print " / ".join([ "%s: %s" % (k, info[k]) for k in keyList
                            if isinstance(info[k], basestring) ])
 
+# Note: this is no longer used
 def kludgyGetDmesgLastEventTtyUsb():
     # as horrible as its name - you should use a pyudev.Monitor instead 
     # (but anyway, here is what people often do manually as a first step)
@@ -135,18 +142,26 @@ def kludgyGetDmesgLastEventTtyUsb():
             lastEventOf[ttyName] = clock
     return lastEventOf
 
-def printLastM3():
+def getOrderedM3List():
+    """Return M3 devices Ordered by devnum
+     XXX: what about multiple busnum ? """
     infoList = getMoteDevices()
-    lastEventOf = kludgyGetDmesgLastEventTtyUsb()
-    clockAndTtyList = [(lastEventOf.get(info["port"], 0), info["port"]) 
-                       for info in infoList if info["type"] == "IoT-LAB M3"]
-    clockAndTtyList.sort()
-    if len(clockAndTtyList) == 0:
+    #lastEventOf = kludgyGetDmesgLastEventTtyUsb()
+    #clockAndInfoList = [(lastEventOf.get(info["port"], 0), info) 
+    #                   for info in infoList if info["type"] == "IoT-LAB M3"]
+    clockAndInfoList =  [(info["devNum"], info)
+                         for info in infoList if info["type"] == "IoT-LAB M3"]
+    clockAndInfoList.sort()
+    return [info for (clock,info) in clockAndInfoList]
+
+def printLastM3():
+    m3List = getOrderedM3List()
+    if len(m3List) == 0:
         sys.stderr.write("ERROR: not IoT-LAB M3 detected\n")
         print "NO.IOTLAB.M3"
         sys.exit(1)
     else:
-        print "/dev/%s" % clockAndTtyList[-1][1]
+        print "/dev/%s" % m3List[-1]["port"]
 
 #---------------------------------------------------------------------------
 
@@ -155,9 +170,9 @@ if __name__ == "__main__":
         saveAllDeviceInfo("usb-serial")
     elif "show" in sys.argv:
         showAllDeviceInfo("usb-serial")
-    elif "last" in sys.argv:
-        pprint.pprint(kludgyGetDmesgLastEventTtyUsb())
     elif "kludgy-last-m3" in sys.argv:
+        pprint.pprint(kludgyGetDmesgLastEventTtyUsb())
+    elif "last-m3" in sys.argv:
         printLastM3()
     else:
         showMoteDevices()
