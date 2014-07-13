@@ -166,7 +166,7 @@ class IotlabExp:
             nodeCount = len(nodeList)
             tryOnce = True
         else: tryOnce = False
-        while nodeCount > len(flashedNodeList):
+        while nodeCount > 0: #len(flashedNodeList):
             countDown -= 1
             if countDown == 0: # don't flash forever
                 raise RuntimeError("Too many flash attempts")

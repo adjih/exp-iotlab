@@ -57,6 +57,16 @@ expServer = nodeOfServer.keys()[0]
 #--------------------------------------------------
 # Ensure that persistent info corresponds to this experiment
 
+BorderRouterPriorityList = [69,68,65,63,61]
+
+def getPriority(address):
+    nodeId = IotlabHelper.extractNodeId(address)
+    if nodeId in BorderRouterPriorityList:
+        return BorderRouterPriorityList.index(nodeId)
+    else: return len(BorderRouterPriorityList)
+
+nodeList.sort(key=getPriority)
+
 if args.wipe:
     exp.resetPersistentInfo()
 isReset = exp.ensurePersistentNameOrReset(ExperimentName)

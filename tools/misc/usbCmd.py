@@ -163,7 +163,7 @@ def cmdPrintTty(args):
     assert args.device_index != None # you must pass it
     m3List = UsbHelper.getOrderedM3List()
     info = m3List[-1-args.device_index]
-    print info["port"]
+    print "/dev/%s"%info["port"]
 
 def cmdTty(args):
     assert args.device_index != None # you must pass it

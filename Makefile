@@ -566,18 +566,64 @@ rebuild-contiki:
 # New commands with python (and patched OCD)
 
 CMDLASTM3=python ${CURDIR}/tools/misc/UsbHelper.py last-m3
-CMDFLASHM3=python ${CURDIR}/tools/misc/usbCmd.py flash
 
 direct-miniterm-m3:
 	miniterm.py `${CMDLASTM3}` 500000
 
-
-
-recompile-contiki:
-	@# Used for debugging XXX
-
 lsusb:
 	python tools/misc/UsbHelper.py
+
+
+
+# You don't need this. If you need this, you can type directly the cmds:
+CMDJTAG=python ${CURDIR}/tools/misc/usbCmd.py 
+
+do-patch-openocd:
+	cd ./tools/misc/extra && sudo ./do-patch-ocd-on-ubuntu-14.04.sh
+
+I=${CURDIR}/iot-lab/parts/contiki/examples/ipv6
+
+dbg-start-servers:
+	${CMDJTAG} --auto-port --roxterm --device-index 0 server
+	${CMDJTAG} --auto-port --roxterm --device-index 1 server
+
+dbg-clean:
+	cd iot-lab/parts/contiki/examples/ipv6 \
+          && (cd rpl-border-router && rm -rf *.a *.iotlab-m3 obj_iotlab-m3 ) \
+          && (cd http-server && rm -rf *.a *.iotlab-m3 obj_iotlab-m3 )
+
+dbg-compile:
+	cd iot-lab/parts/contiki/examples/ipv6 \
+          && (cd rpl-border-router && make TARGET=iotlab-m3) \
+          && (cd http-server && make TARGET=iotlab-m3)
+
+DBGCLIENT=${CMDJTAG} --auto-port --client --device-index
+
+DBG_FW_BR=${I}/rpl-border-router/border-router.iotlab-m3
+DBG_FW_R=${I}/http-server/http-server.iotlab-m3
+
+#DBG_FW_BR=tools/PreCompiled/border-router.iotlab-m3
+#DBG_FW_R=tools/PreCompiled/http-server.iotlab-m3
+
+dbg-reflash:
+	${DBGCLIENT} 0 flash ${DBG_FW_BR}
+	${DBGCLIENT} 1 flash ${DBG_FW_R}
+
+dbg-reset:
+	${DBGCLIENT} 0 send reset
+	${DBGCLIENT} 1 send reset
+
+dbg-halt:
+	${DBGCLIENT} 0 send "reset halt"
+	${DBGCLIENT} 1 send "reset halt"
+
+dbg-tty:
+	${DBGCLIENT} 1 tty
+
+dbg-tunslip:
+	@#roxterm -e bash -c
+	sudo local/bin/tunslip6 -B 500000 -s `${DBGCLIENT} 0 print-tty` aaaa::1/64
+
 
 #===========================================================================
 #===========================================================================
