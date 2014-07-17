@@ -41,7 +41,7 @@ GCCARMDIR=${CURDIR}/local/gcc-arm-none/bin
 ensure-gcc-arm: local/gcc-arm-none/bin/arm-none-eabi-gcc
 
 local/download/${GCCARMPKG}: ensure-pkg-wget
-	make ensure-local-dirs
+	make really-ensure-local-dirs
 	cd local/download && wget https://launchpad.net/gcc-arm-embedded/4.8/4.8-2014-q2-update/+download/${GCCARMPKG}
 
 local/gcc-arm-none/bin/arm-none-eabi-gcc: 

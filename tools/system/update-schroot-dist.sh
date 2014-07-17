@@ -37,14 +37,14 @@ apt-get install -y git make vim jed \
 
 apt-get install -y usbutils python-pyudev tkdiff man emacs23 \
        chromium-browser strace lsof gnome-terminal qgit tshark wireshark \
-       python-paramiko graphviz
+       python-paramiko graphviz lsb-release
 
 if [ "$2" = "extra" ] ; then
   add-apt-repository "deb http://repo.mate-desktop.org/archive/1.8/ubuntu $(lsb_release -cs) main"
   wget -q http://mirror1.mate-desktop.org/debian/mate-archive-keyring.gpg -O- \
   | apt-key add -
   apt-get update -y
-  apt-get install -y mate-core mate-desktop-environment mate-notification-daemon
+  apt-get install -y --force-yes mate-core mate-desktop-environment mate-notification-daemon
   apt-get install -y cdbs build-essential texlive \
      software-properties-common gdebi-core openocd
   #add-apt-repository -s "http://archive.ubuntu.com/ubuntu/ trusty main"

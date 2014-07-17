@@ -114,7 +114,14 @@ def cmdForen6Sniffers(args):
     cmd += " --nodes " 
     cmd += " ".join(["localhost:%s"%port for (node,port) in borderRouterList])
     print "+", cmd
-    processManager.startSubProcessInTerm("Foren6 sniffers processing", cmd)
+    processManager.startSubProcessInTerm("Foren6 sniffers", cmd)
+
+def cmdForen6(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    cmd = "cd .. && make run-foren6"
+    print "+", cmd
+    processManager.startSubProcessInTerm("Foren6", cmd)
 
 #---------------------------------------------------------------------------
 
@@ -179,6 +186,8 @@ foren6SniffersParser = subparsers.add_parser("foren6-sniffers")
 foren6SniffersParser.add_argument("--output", type=str, default="socat",
                                   choices=["wireshark", "tshark", "socat"])
 
+foren6Parser = subparsers.add_parser("foren6")
+
 args = parser.parse_args()
 
 if args.exp_id == None:
@@ -196,6 +205,8 @@ elif args.command == "tunslip6":
     cmdTunslip6(args)
 elif args.command == "foren6-sniffers":
     cmdForen6Sniffers(args)
+elif args.command == "foren6":
+    cmdForen6(args)
 elif args.command in nodeCmdParserTable:
     cmdNodeCmd(args)
 else: raise RuntimeError("Unexpected command", args.command)

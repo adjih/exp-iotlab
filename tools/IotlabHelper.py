@@ -403,6 +403,10 @@ class IotlabHelper:
     def getResourcesId(self, site= None):
         return fromJson(self.request.get_resources_id(site))["items"]
 
+    def getAliveList(self, site, archi):
+        return [info for info in self.getResources(site)
+                if info["archi"] == archi and info["state"] == "Alive"]
+
     #--------------------------------------------------
     # Experiments
     #--------------------------------------------------
@@ -587,8 +591,10 @@ def testProcessManager():
 if __name__ == "__main__":
     iotlab = IotlabHelper()
     
-    pprint.pprint(iotlab.getResources("grenoble"))
-    pprint.pprint(iotlab.getResourcesId("grenoble"))
+    #pprint.pprint(iotlab.getResources("grenoble"))
+    #pprint.pprint(iotlab.getResourcesId("grenoble"))
+    print "Alive at grenoble:", len(iotlab.getAliveList(
+            "grenoble", "m3:at86rf231"))
 
     print "--- List of sites"
     pprint.pprint(iotlab.getSiteList())
