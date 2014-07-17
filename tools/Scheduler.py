@@ -1,9 +1,9 @@
 #---------------------------------------------------------------------------
-#                           Simple scheduler
-#             Cedric Adjih, projet Hipercom, INRIA Rocquencourt        
-#  Copyright 2003-2008 Institut National de Recherche en Informatique et  
-#  en Automatique.  All rights reserved.  Distributed only with permission.
+# Simple scheduler
+#
+# Cedric Adjih, Inria, 2003-2008
 #---------------------------------------------------------------------------
+# [Jul2014] copied from NC-iotlab/src/Scheduler.py
 # [Aug2010] copied from AllSerena/admin
 # [June2010] copied from IHO/PyONet/Scheduler.py
 # [Sept 2008] comes from NC/src/Scheduler.py, which comes from:

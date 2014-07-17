@@ -208,8 +208,12 @@ run-bash: local/src/local.profile
 run-roxterm: local/src/local.profile ensure-pkg-roxterm
 	DISPLAY=:0 roxterm -e bash --init-file local/src/local.profile #XXX default .rc
 
+run-gnome-terminal: local/src/local.profile ensure-pkg-gnome-terminal
+	DISPLAY=:0 gnome-terminal --window-with-profile=base #XXX default .rc
+
 go-trusty:
-	schroot -c trusty make run-roxterm
+	@#schroot -c trusty make run-roxterm
+	schroot -c trusty make run-gnome-terminal
 
 ensure-local-profile: local/src/local.profile
 
@@ -669,9 +673,9 @@ ensure-pkg-libexpat1-dev: /usr/include/expat.h
 ensure-pkg-libqt4-dev: /usr/include/qt4/Qt/QtGui
 /usr/include/qt4/Qt/QtGui: ; make install-ubuntu-pkg PKGNAME='libqt4-dev'
 
-# XXX NO?:
-ensure-pkg-python-requests: /usr/share/doc/python-requests/copyright
-/usr/share/doc/python-requests/copyright: ; make install-ubuntu-pkg PKGNAME='python-requests'
+# Don't use this version of python requests:
+#ensure-pkg-python-requests: /usr/share/doc/python-requests/copyright
+#/usr/share/doc/python-requests/copyright: ; make install-ubuntu-pkg PKGNAME='python-requests'
 
 ensure-pkg-scons: /usr/bin/scons
 /usr/bin/scons: ; make install-ubuntu-pkg PKGNAME='scons'
@@ -695,6 +699,9 @@ ensure-pkg-socat: /usr/bin/socat
 ensure-pkg-python-serial: /usr/share/doc/python-serial/copyright
 /usr/share/doc/python-serial/copyright:
 	make install-ubuntu-pkg PKGNAME='python-serial'
+
+ensure-pkg-gnome-terminal: /usr/bin/gnome-terminal
+/usr/bin/gnome-terminal: ; make install-ubuntu-pkg PKGNAME='gnome-terminal'
 
 ensure-pip-PyDispatcher: /usr/local/lib/python2.7/dist-packages/pydispatch/__init__.py
 /usr/local/lib/python2.7/dist-packages/pydispatch/__init__.py:

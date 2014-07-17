@@ -1,0 +1,203 @@
+#! /usr/bin/python
+#---------------------------------------------------------------------------
+# Experiment management tool
+#
+# Cedric Adjih - Inria - 2014
+#---------------------------------------------------------------------------
+
+import sys, os, re, pprint
+
+#thisScriptPath = os.path.realpath(inspect.getfile(inspect.currentframe()))
+#thisDirName = os.path.dirname(thisScriptPath)
+#sys.path.append(thisDirName) # XXX: be cleaner
+
+import argparse
+import IotlabHelper
+from IotlabHelper import extractNodeId, AllPossibleNodes
+
+#---------------------------------------------------------------------------
+# utils
+#---------------------------------------------------------------------------
+
+def getLastExpId():
+    lastExpLink = os.readlink(IotlabHelper.LastExpSymLink)
+    rExpId = re.compile(IotlabHelper.ExpTemplateDir.replace("%s", "([0-9]+)"))
+    mExpId = rExpId.search(lastExpLink)
+    if mExpId == None:
+        raise RuntimeError("Cannot parse %s" % IotlabHelper.LastExpSymLink,
+                           (IotlabHelper.ExpTemplateDir, lastExpLink))
+    expId = int(mExpId.group(1))
+    return expId
+
+def getHelperAndExp(args, server=None):
+    iotlab = IotlabHelper.IotlabHelper(server)
+    exp = iotlab._makeExp(args.exp_id)
+    expInfo = exp.getPersistentInfo()
+    if server == None and expInfo["args"]["dev"] != None:
+        return getHelperAndExp(args, expInfo["args"]["dev"])
+    else: return iotlab, exp
+
+def getProcessManager(exp):
+    processManager = IotlabHelper.ProcessManager(False)
+    processManager.setWindowTitle(exp.getPersistentInfo()["name"])
+    return processManager
+
+#---------------------------------------------------------------------------
+# Commands
+#---------------------------------------------------------------------------
+
+ForwardedTypeList = ["border-router", "zep-sniffer", "foren6-sniffer"]
+
+def cmdSshForward(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    expInfo = exp.getPersistentInfo()
+
+    currentPort = [args.start_port] # ugly use because 'nonlocal' not in Py2.7
+    def getNewPort():
+        result = currentPort[0]
+        currentPort[0] += 1
+        return result
+
+    forwardByType = {}
+    redirectList = []
+    nodes = []
+    for typeName, typeInfo in expInfo["nodeInfoByType"].iteritems():
+        if typeName in ForwardedTypeList:
+            forwardList = [(node,getNewPort()) for node in typeInfo["nodes"]]
+            redirectList.extend(
+                ["-L %s:%s:%s" % (port, node, IotlabHelper.SerialTcpPort)
+                 for (node,port) in forwardList ])
+            nodes.extend(typeInfo["nodes"])
+            assert typeName not in forwardByType
+            forwardByType[typeName] = forwardList
+
+    exp.writeFile("ssh-forward-port.json", IotlabHelper.toJson(forwardByType))
+ 
+    expServer = IotlabHelper.getExpUniqueServer(exp, nodes)
+    #cmd = "echo FORWARDING PORTS ; TERM=xterm watch -t 'date +ssh_port_forward///%c' ; sleep 600000"
+    cmd = "echo FORWARDING PORTS; sleep 600000"
+    sshRedirectPortStr = " ".join(redirectList)
+    sshSnifferTunnelCommand = "ssh -T %s@%s %s '%s'" % (
+        iotlab.userName, expServer, sshRedirectPortStr, cmd)
+    #print sshSnifferTunnelCommand
+    print "+", cmd
+    processManager.startSubProcessInTerm("ssh tunnels to IoT-LAB", 
+                                         sshSnifferTunnelCommand)
+
+#---------------------------------------------------------------------------
+
+TunslipBinFileName = "../local/bin/tunslip6"
+
+def cmdTunslip6(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    
+    forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
+    borderRouterList = forwardByType.get("border-router")
+    for node, port in borderRouterList:
+        tunslipCommand = ("sudo " +TunslipBinFileName
+                          +" aaaa::1/64 -L -a localhost"
+                          + " -p %s"% port)
+        print "++", tunslipCommand
+        processManager.startSubProcessInTerm("Contiki tunslip6 %s" % node, 
+                                             tunslipCommand)
+
+#---------------------------------------------------------------------------
+
+def cmdForen6Sniffers(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
+    borderRouterList = forwardByType.get("foren6-sniffer")
+    cmd = "./ConnectionTool.py connect --input foren6 --output %s" % args.output
+    cmd += " --nodes " 
+    cmd += " ".join(["localhost:%s"%port for (node,port) in borderRouterList])
+    print "+", cmd
+    processManager.startSubProcessInTerm("Foren6 sniffers processing", cmd)
+
+#---------------------------------------------------------------------------
+
+def cmdNodeCmd(args):
+    iotlab, exp = getHelperAndExp(args)
+    expInfo = exp.getPersistentInfo()
+    nodeList = []
+    for typeName in args.typeList:
+        typeInfo = expInfo["nodeInfoByType"][typeName]
+        nodeList.extend(typeInfo["nodes"])
+    print "+", args.command, " ".join(nodeList)
+    result = exp.doNodeCmd(args.command, nodeList)
+    pprint.pprint(result)
+
+#---------------------------------------------------------------------------    
+
+def cmdInfo(args):
+    iotlab, exp = getHelperAndExp(args)
+    pprint.pprint(exp.getPersistentInfo())
+
+#---------------------------------------------------------------------------
+# Special processing for "init": launch the Experiment script
+#---------------------------------------------------------------------------
+
+if len(sys.argv) > 2 and sys.argv[1] == "init":
+    os.execl("/usr/bin/python", *["/usr/bin/python"]+sys.argv[2:])
+    raise RuntimeError("should not happen") # due to execle
+
+#---------------------------------------------------------------------------
+# Main program
+#---------------------------------------------------------------------------
+
+SshTunnelStartPort = 3000
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--exp-id", type=int, default=None)
+
+subparsers = parser.add_subparsers(dest="command")
+
+infoParser = subparsers.add_parser("info")
+
+reflashParser = subparsers.add_parser("reflash")
+reflashParser.add_argument("typeList", nargs="+")
+    
+sshForwardParser = subparsers.add_parser("ssh-forward")
+sshForwardParser.add_argument("--start-port", type=int, 
+                              default=SshTunnelStartPort)
+
+tunslip6Parser = subparsers.add_parser("tunslip6")
+
+sshForwardParser = subparsers.add_parser("ssh-forward")
+sshForwardParser.add_argument("--start-port", type=int, 
+                              default=SshTunnelStartPort)
+
+nodeCmdParserTable = {}
+for nodeCmd in ["reset", "stop", "start"]:
+    nodeCmdParser = subparsers.add_parser(nodeCmd)
+    nodeCmdParser.add_argument("typeList", nargs="+")
+    nodeCmdParserTable[nodeCmd] = nodeCmd
+
+foren6SniffersParser = subparsers.add_parser("foren6-sniffers")
+foren6SniffersParser.add_argument("--output", type=str, default="socat",
+                                  choices=["wireshark", "tshark", "socat"])
+
+args = parser.parse_args()
+
+if args.exp_id == None:
+    expId = getLastExpId()
+    print "(no experiment id specified, using last one: exp %s)" % expId
+    args.exp_id = expId
+
+if args.command == "reflash":
+    cmdReflash(args)
+elif args.command == "info":
+    cmdInfo(args)
+elif args.command == "ssh-forward":
+    cmdSshForward(args)
+elif args.command == "tunslip6":
+    cmdTunslip6(args)
+elif args.command == "foren6-sniffers":
+    cmdForen6Sniffers(args)
+elif args.command in nodeCmdParserTable:
+    cmdNodeCmd(args)
+else: raise RuntimeError("Unexpected command", args.command)
+
+#---------------------------------------------------------------------------

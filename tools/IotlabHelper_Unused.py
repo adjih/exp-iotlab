@@ -48,7 +48,6 @@ if False:
     #addressList = [nodeInfo["network_address"] for nodeInfo in expInfo["items"]]
     #pprint.pprint(addressList)
 
-
     snifferAddressList = [address for address in addressList
                           if getNodeId(address)%2 == 0]
     snifferAddressList = []
@@ -155,3 +154,225 @@ def runSshRedirectAll(userName, addressList):
 #     print (result)
 
 #print exp.doNodeCmd("reset", IotlabHelper.AllList)
+
+
+#---------------------------------------------------------------------------
+
+
+        ##self.sd.send("t\n")
+        ##self.clientSocketInput = Scheduler.BufferedInputFdHandler(
+        ##    self.clientSocket.fileno(), self.clientSocket.recv,
+        ##    self.eventSocketInput, self.eventSocketClose)
+        ##self.clientSocketOutput = Scheduler.BufferedOutputFdHandler(
+        ##    self.clientSocket.fileno(), self.clientSocket.send)
+        ##self.scheduler.addFdHandler(self.clientSocketInput)
+        ##self.scheduler.addFdHandler(self.clientSocketOutput)
+
+
+        
+        #self.createListenSocket()
+
+    # def createListenSocket(self):
+    #     self.listenSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    #     self.listenSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1) 
+    #     self.listenSocket.bind(("", BaseProxyPort+self.nodeId))
+    #     self.listenSocket.listen(10000)
+    #     self.scheduler.addFdHandler(Scheduler.FunctionalFdHandler(
+    #             self.listenSocket, waitInputFunc = lambda: True,
+    #             handleInputFunc = self.eventClientConnection))
+
+    # def eventClientConnection(self):
+    #     clientSocket, address = self.listenSocket.accept()
+    #     print "[proxy/serial] Client connection from address:", address
+    #     if address[0] != "127.0.0.1": 
+    #         raise RuntimeError(("client from different machine", address))
+    #     client = LocalConnection(self, clientSocket)
+    #     self.clientList.append(client)
+
+
+#---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+
+# [Aug2010] Parts copied from AllSerena/admin/SerenaRemoteSchedulerServer.py
+class LocalConnection:
+    def __init__(self, nodeConnection, clientSocket):
+        self.scheduler = nodeConnection.scheduler
+        self.nodeConnection = nodeConnection
+        self.clientSocket = clientSocket
+
+        self.clientSocketInput = Scheduler.BufferedInputFdHandler(
+            self.clientSocket.fileno(), self.clientSocket.recv,
+            self.eventSocketInput, self.eventSocketClose)
+        self.clientSocketOutput = Scheduler.BufferedOutputFdHandler(
+            self.clientSocket.fileno(), self.clientSocket.send)
+        self.scheduler.addFdHandler(self.clientSocketInput)
+        self.scheduler.addFdHandler(self.clientSocketOutput)
+       
+    def eventSocketInput(self):
+        data = self.clientSocketInput.peek()
+        rawMessage = self.clientSocketInput.read(len(data))
+        assert rawMessage == data
+        self.nodeConnection.write(data)
+
+    def eventSocketClose(self):
+        self.scheduler.removeFdHandler(self.clientSocketInput)
+        self.scheduler.removeFdHandler(self.clientSocketOutput)
+        
+    def write(self, data):
+        self.clientSocketOutput.write(data)
+
+
+    #http://stackoverflow.com/questions/2408560/python-nonblocking-console-input
+    def redirectInputToNode(self, nodeId):
+        if self.termAttr == None:
+            try:
+                self.termAttr = termios.tcgetattr(sys.stdin)
+            except: 
+                print "[WARNING] cannot termios.tcgetattr(sys.stdin)"
+                #return
+        #tty.setcbreak(sys.stdin.fileno())
+        
+        try:
+            tty.setraw(sys.stdin.fileno())
+        except:
+            print "[WARNING] cannot tty.setraw(...)"
+            #return
+
+        self.scheduler.addFdHandler(Scheduler.FunctionalFdHandler(
+                sys.stdin, waitInputFunc = lambda: True,
+                handleInputFunc = lambda: self.eventStdinInfo(nodeId)))
+
+    def eventStdinInfo(self, nodeId):
+        data = ""
+        while hasStdinData():
+            c = sys.stdin.read(1)
+            if c == chr(3): raise RuntimeError("Ctrl-C pressed")
+            data += c
+        #print "event[%s]" % data
+        print "STOPPED"
+        sys.exit(0)
+
+        sys.stdout.write(data)
+        self.connectionTable[nodeId].sd.send(data)
+
+#--------------------------------------------------
+
+def startProcess(argList, withXterm = False, xtermOptionList=[], 
+                 withSocketPair = False):
+    print "[starting process]", argList
+    if not withXterm: realArgList = argList
+    else: realArgList = ["xterm"]+xtermOptionList+["-e"]+argList
+
+    if withSocketPair:
+        sd1, sd2 = socket.socketpair()
+        process = subprocess.Popen(realArgList, 
+                                   stdin=sd2, stdout=sd2, stderr=sd2)
+    else: 
+        process = subprocess.Popen(realArgList)
+        sd1, sd2 = None, None
+    return process, sd1
+
+#---------------------------------------------------------------------------
+
+# -> http://www.python.org/search/hypermail/python-1993/0020.html
+#os.system("stty raw")
+
+        #if self.log != None:
+        #    self.log.write(repr((time.time(), "out", data))+"\n")
+        #    if self.config.withFlush: self.log.flush()
+        ##sys.stdout.write("[%d|" % self.nodeId +data+"]")
+        ##sys.stdout.flush()
+        #for client in self.clientList:
+        #    client.write(data)
+
+        
+        #if self.config.shouldLog:
+        #    self.log = open(self.config.resultDir+"/log.%d" % self.nodeId, "w")
+        #else: self.log = None
+
+        # self.clientList = []
+
+        #if self.log != None:
+        #    self.log.write(repr((time.time(), "in", data))+"\n")
+
+
+#---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
+
+
+
+
+raw_input("Will set tunnels for sniffer: ")
+TunnelSnifferStartPort = 3000
+sshRedirectPortList = [ 
+    "-L %s:%s:%s" % (TunnelSnifferStartPort+i, snifferNode, 
+                     IotlabHelper.SerialTcpPort)
+    for i, snifferNode in enumerate(snifferList) ]
+sshRedirectPortStr = " ".join(sshRedirectPortList)
+sshSnifferTunnelCommand = "ssh -T %s@%s %s 'echo FORWARDING Sniffer PORTS ; sleep 600000'" % (
+    iotlabHelper.userName, expServer, sshRedirectPortStr)
+#print sshSnifferTunnelCommand
+processManager.startSubProcessInTerm("ssh tunnels for sniffers to IoT-LAB", 
+                                     sshSnifferTunnelCommand)
+
+
+
+
+#---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
+# Now 
+#---------------------------------------------------------------------------
+#---------------------------------------------------------------------------
+
+#--------------------------------------------------
+# Stop all nodes
+
+#exp.doNodeCmd("stop", IotlabHelper.AllList)
+
+#--------------------------------------------------
+# Start ssh forwarding, tunslip, and reset all nodes
+#
+# XXX: this is messy, use a GUI
+raw_input("Will run tunslip6. Press any key to continue: ")
+
+
+raw_input("Will run tunslip6. Press any key to continue: ")
+tunslipCommand = ("sudo " +TunslipBinFileName+" aaaa::1/64 -L -a localhost"
+                  + " -p %s"% TunnelPort)
+processManager.startSubProcessInTerm("Contiki tunslip6", tunslipCommand)
+
+raw_input("Will run socat. Press any key to continue: ")
+for i, snifferNode in enumerate(snifferList):
+    port = TunnelSnifferStartPort+i
+    link = "/tmp/mytty%d" % i
+    cmd = "socat TCP4:127.0.0.1:%s pty,link=%s,raw" % (port, link)
+    processManager.startSubProcessInTerm(
+        "SOCAT %s :%s" % (snifferNode, port), cmd)
+
+raw_input("Will run foren6: ")
+cmd = "cd ../foren6 && make run"
+processManager.startSubProcessInTerm("foren6", cmd)
+
+raw_input("Will reset all nodes. Press any key to continue: ")
+exp.doNodeCmd("reset", IotlabHelper.AllList)
+
+print "Running (press [Ctrl-C] to interrupt)"
+time.sleep(10000)
+
+#---------------------------------------------------------------------------
+
+scenarioInfo = {
+    "borderRouter": borderRouterNode,
+    "snifferList": snifferList,
+    "failedList": currentNodeList
+}
+info["scenario"] = scenarioInfo
+
+#TunnelPort = 2000
+#sshTunnelCommand = "ssh -T %s@%s -L %s:%s:%s 'echo FORWARDING PORTS ; sleep 600000'" % (
+#    iotlabHelper.userName, expServer, TunnelPort, borderRouterNode, 
+#    IotlabHelper.SerialTcpPort)
+#processManager.startSubProcessInTerm("ssh Tunnel to IoT-LAB", sshTunnelCommand)
+
+#---------------------------------------------------------------------------

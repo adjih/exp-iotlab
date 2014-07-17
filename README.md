@@ -13,7 +13,7 @@ and [wiki](https://github.com/iot-lab/iot-lab).
 
 ---------------------------------------------------------------------------
 
-This is *work in progress, nearly empty for now*
+This is *work in progress*
 
 The main idea is to automatically run some experiments on FIT IoT-LAB
 (see section [Experiments](#Experiments)):
@@ -32,9 +32,6 @@ For more automation, two parts are added (really a byproduct):
 ---------------------------------------------------------------------------
 
 # tl;dr
-
-_This is not working for now (for me) because of SSH_AGENT_PID etc._
-
 
 1) Configure your ssh config properly to access IoT-LAB servers.
 

@@ -4,7 +4,7 @@
 # Cedric Adjih - Inria - 2014
 #---------------------------------------------------------------------------
 
-import sys, argparse, pprint, os, time
+import sys, argparse, pprint, os, time, random
 import json, subprocess
 sys.path.append("../iot-lab/parts/cli-tools")
 
@@ -58,7 +58,6 @@ def extractNodeId(address):
 def reprNodeList(nodeList):
     return ",".join([address.split(".")[0] for address in nodeList])
 
-
 def getNodePerServer(addressList):
     nodeOfServer = {}
     for address in addressList:
@@ -69,6 +68,27 @@ def getNodePerServer(addressList):
             nodeOfServer[server] = []
         nodeOfServer[server].append(name)
     return nodeOfServer
+
+def getExpUniqueServer(exp, nodeList=None):
+    if nodeList == None:
+        nodeList = exp.getNodeList()
+    nodeOfServer = getNodePerServer(nodeList)
+    if len(nodeOfServer.keys()) != 1: 
+        raise RuntimeError("ERROR: multi-site experiment not handled")
+    expServer = nodeOfServer.keys()[0] 
+    return expServer
+
+
+def sortNodeByPriority(nodeList, nodeByPriorityList):
+    def getPriority(address):
+        nodeId = extractNodeId(address)
+        if nodeId in nodeByPriorityList:
+            return nodeByPriorityList.index(nodeId)
+        else: return len(nodeByPriorityList)
+
+    nodeList = nodeList[:]
+    nodeList.sort(key=getPriority)
+    return nodeList
 
 #---------------------------------------------------------------------------
 #---------------------------------------------------------------------------
@@ -155,6 +175,9 @@ class IotlabExp:
         """Flash nodes until the exact number `nodeCount' is successfully 
         flashed. Nodes are flashing in the order of `initialNodeList'.
         If `nodeCount' is None, all nodes are flashed, and only once."""
+        if nodeCount == 0:
+            return [], initialNodeList[:]
+        
         countDown = MaxFlashAttempts
         nodeList = initialNodeList[:]
         flashedNodeList = []
@@ -194,10 +217,26 @@ class IotlabExp:
         return flashedNodeList, nodeList
 
 #--------------------------------------------------
+# XXX: make it configurable
+
+TypeToFirmware = {
+    "foren6-sniffer":
+        "../iot-lab/parts/openlab/build.m3/bin/foren6_sniffer.elf",
+    "zep-sniffer":
+        "../iot-lab/parts/openlab/build.m3/bin/zep_sniffer.elf",
+    "zep-sniffer-a8-m3":
+        "../iot-lab/parts/openlab/build.a8-m3/bin/zep_sniffer.elf"
+}
+
+#SnifferFwFileName = "PreCompiled/foren6_sniffer.elf"
+# TunslipBinFileName = "sudo ../local/bin/tunslip6 aaaa::1/64 -L -a localhost -p 2000"
+
+#--------------------------------------------------
 
 ExpTemplateDir = "Experiment-%s"
 ExpPersistentPath = "persistent.json"
 AllPossibleNodes = ('AllNodes',)
+LastExpSymLink = "Experiment-Last"
 
 class IotlabPersistentExp(IotlabExp):
     """An experiment that stores some persistent data in a subdirectory.
@@ -209,6 +248,15 @@ class IotlabPersistentExp(IotlabExp):
         self.persistentInfoCache = None
 
     #--------------------------------------------------
+
+    def makeLastSymLink(self, verbose=True):
+        self.ensureDir()
+        if os.path.exists(LastExpSymLink):
+            os.remove(LastExpSymLink)
+        if verbose:
+            expDir = self.getPath("")
+            print ". making symlink %s -> %s" % (LastExpSymLink, expDir)
+        os.symlink(expDir, LastExpSymLink)
 
     def getPersistentInfo(self):
         if self.persistentInfoCache == None:
@@ -273,6 +321,16 @@ class IotlabPersistentExp(IotlabExp):
     
     #--------------------------------------------------
 
+    def recordFlashedNodes(self, nodeTypeName, nodeList, firmwareFileName):
+        expInfo = self.getPersistentInfo()
+        if "nodeInfoByType" not in expInfo:
+            expInfo["nodeInfoByType"] = {}
+        expInfo["nodeInfoByType"][nodeTypeName] = {
+            "nodes": nodeList,
+            "firmware": firmwareFileName
+            }
+        self.savePersistentInfo(expInfo) # XXX: maybe not now
+
     def ensureFlashedNodes(self, nodeTypeName, firmwareFileName, 
                            nodeCount, initialNodeList):
         expInfo = self.getPersistentInfo()
@@ -281,10 +339,10 @@ class IotlabPersistentExp(IotlabExp):
                 firmwareFileName, nodeCount, initialNodeList)
             assert (nodeCount == AllPossibleNodes 
                     or len(flashedNodeList) == nodeCount)
-            expInfo[nodeTypeName] = flashedNodeList
-            self.savePersistentInfo(expInfo)
+            self.recordFlashedNodes(nodeTypeName, flashedNodeList, 
+                                    firmwareFileName)
         else:
-            flashedNodeList = expInfo[nodeTypeName]
+            flashedNodeList = expInfo["nodesInfoByType"][nodeTypeName]
             currentNodeList = initialNodeList[:]
             if (len(flashedNodeList) != nodeCount 
                 and nodeCount != AllPossibleNodes):
@@ -296,8 +354,16 @@ class IotlabPersistentExp(IotlabExp):
                 currentNodeList.remove(address)
         return flashedNodeList, currentNodeList
 
+    def ensureFlashedStdNodes(self, nodeTypeName, nodeCount, nodeList,
+                              withRandomOrder = False):
+        if withRandomOrder:
+            nodeList = nodeList[:]
+            random.shuffle(nodeList)
+        fw = TypeToFirmware[nodeTypeName]
+        return self.ensureFlashedNodes(nodeTypeName, fw, nodeCount, nodeList)
 
 #--------------------------------------------------
+# Standard firmware (sniffer)
 
 NameEmptyProfileM3 = "default_m3_rest"
 
@@ -324,12 +390,26 @@ class IotlabHelper:
                                 parser=self)
         self.userName = name
 
-    def _makeExp(self, expId):
-        "Factory for IotlabExp"
-        return IotlabPersistentExp(self, expId)
+    #--------------------------------------------------
+    # Site / resources information
+    #--------------------------------------------------
 
     def getSiteList(self):
         return fromJson(self.request.get_sites())
+
+    def getResources(self, site= None):
+        return fromJson(self.request.get_resources(site))["items"]
+
+    def getResourcesId(self, site= None):
+        return fromJson(self.request.get_resources_id(site))["items"]
+
+    #--------------------------------------------------
+    # Experiments
+    #--------------------------------------------------
+
+    def _makeExp(self, expId):
+        "Factory for IotlabExp"
+        return IotlabPersistentExp(self, expId)
 
     def getExpInfoList(self, stateList = ["Running"]):
         """Return a list of running [opt:waiting] experiments"""
@@ -422,6 +502,10 @@ def parserAddTypicalArgs(parser, defaultName):
                         type=int, default=DefaultNbNode)
     parser.add_argument("--duration", type=int, default=DefaultDuration)
     parser.add_argument("--dev", type=str, default=None)
+    parser.add_argument("--nb-foren6-sniffers", dest="nbForen6Sniffers", 
+                        type=int, default=0)
+    parser.add_argument("--nb-zep-sniffers", dest="nbZepSniffers", 
+                        type=int, default=0)
 
 def ensureExperimentFromArgs(args):
     iotlab = IotlabHelper(args.dev)
@@ -446,9 +530,9 @@ def ensureExperimentFromArgs(args):
 class ProcessManager:
     ROXTerm = "/usr/bin/roxterm"
 
-    def __init__(self):
+    def __init__(self, isFirstTerm=True):
         self.processList = []
-        self.isFirstTerm = True
+        self.isFirstTerm = isFirstTerm
         self.windowTitle = None
 
     def setWindowTitle(self, windowTitle):
@@ -503,6 +587,9 @@ def testProcessManager():
 if __name__ == "__main__":
     iotlab = IotlabHelper()
     
+    pprint.pprint(iotlab.getResources("grenoble"))
+    pprint.pprint(iotlab.getResourcesId("grenoble"))
+
     print "--- List of sites"
     pprint.pprint(iotlab.getSiteList())
 
