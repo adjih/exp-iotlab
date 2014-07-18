@@ -13,7 +13,8 @@ from IotlabHelper import extractNodeId, AllPossibleNodes
 
 #---------------------------------------------------------------------------
 
-ExperimentName = "Contiki RPL with border router"
+#ExperimentName = "Contiki RPL with border router"
+ExperimentName = "IoT-LAB experiment"
 
 #---------------------------------------------------------------------------
 
@@ -28,7 +29,7 @@ BorderRouterFwFileName = "../iot-lab/parts/contiki/examples/ipv6/rpl-border-rout
 parser = argparse.ArgumentParser(
     description = ExperimentName
 )
-IotlabHelper.parserAddTypicalArgs(parser, "ContikiRpl_BorderHttpSniffer")
+IotlabHelper.parserAddTypicalArgs(parser, "IoTLab_Exp_REST")
 args = parser.parse_args()
 
 iotlabHelper, exp = IotlabHelper.ensureExperimentFromArgs(args)
@@ -59,9 +60,12 @@ foren6SnifferList, currentNodeList = exp.ensureFlashedStdNodes(
 zepSnifferList, currentNodeList = exp.ensureFlashedStdNodes(
     "zep-sniffer", args.nbZepSniffers, currentNodeList, True)
 
-nodeRouterList, currentNodeList = exp.ensureFlashedNodes(
-    "http-rpl-node", NodeFwFileName, AllPossibleNodes, 
-    currentNodeList)
+#nodeRouterList, currentNodeList = exp.ensureFlashedNodes(
+#    "http-rpl-node", NodeFwFileName, AllPossibleNodes, 
+#    currentNodeList)
+
+nodeRouterList, currentNodeList = exp.ensureFlashedStdNodes(
+    "silent", AllPossibleNodes, currentNodeList, True)
 
 #--------------------------------------------------
 # Save scenario

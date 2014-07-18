@@ -37,7 +37,7 @@ apt-get install -y git make vim jed \
 
 apt-get install -y usbutils python-pyudev tkdiff man emacs23 \
        chromium-browser strace lsof gnome-terminal qgit tshark wireshark \
-       python-paramiko graphviz lsb-release
+       python-paramiko graphviz lsb-release python-pygame
 
 if [ "$2" = "extra" ] ; then
   add-apt-repository "deb http://repo.mate-desktop.org/archive/1.8/ubuntu $(lsb_release -cs) main"
@@ -46,7 +46,7 @@ if [ "$2" = "extra" ] ; then
   apt-get update -y
   apt-get install -y --force-yes mate-core mate-desktop-environment mate-notification-daemon
   apt-get install -y cdbs build-essential texlive \
-     software-properties-common gdebi-core openocd
+     software-properties-common gdebi-core openocd 
   #add-apt-repository -s "http://archive.ubuntu.com/ubuntu/ trusty main"
   #apt-get update -y
 fi

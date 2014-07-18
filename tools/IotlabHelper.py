@@ -171,7 +171,7 @@ class IotlabExp:
         return addressList
 
     def safeFlashNodes(self, firmwareFileName, nodeCount, initialNodeList, 
-                       verbose=True):
+                       verbose=True, shouldTryOnce=False):
         """Flash nodes until the exact number `nodeCount' is successfully 
         flashed. Nodes are flashing in the order of `initialNodeList'.
         If `nodeCount' is None, all nodes are flashed, and only once."""
@@ -188,7 +188,7 @@ class IotlabExp:
         if nodeCount == AllPossibleNodes:
             nodeCount = len(nodeList)
             tryOnce = True
-        else: tryOnce = False
+        else: tryOnce = shouldTryOnce
         while nodeCount > 0: #len(flashedNodeList):
             countDown -= 1
             if countDown == 0: # don't flash forever
@@ -222,6 +222,8 @@ class IotlabExp:
 TypeToFirmware = {
     "foren6-sniffer":
         "../iot-lab/parts/openlab/build.m3/bin/foren6_sniffer.elf",
+    "silent":
+        "../iot-lab/parts/openlab/build.m3/bin/tutorial_m3.elf",
     "zep-sniffer":
         "../iot-lab/parts/openlab/build.m3/bin/zep_sniffer.elf",
     "zep-sniffer-a8-m3":
@@ -461,6 +463,8 @@ class IotlabHelper:
     def ensureExpLimit(self):
         expList = self.getExpInfoList(["Running", "Waiting", "Launching",
                                        "toLaunch"])
+        expList = [exp for exp in expList 
+                   if not exp["name"].startswith("Demo_")]
         if len(expList) >= MaxExp:
             self.error("%s experiment(s) already running/waiting:\n"
                        % len(expList) 
@@ -593,8 +597,17 @@ if __name__ == "__main__":
     
     #pprint.pprint(iotlab.getResources("grenoble"))
     #pprint.pprint(iotlab.getResourcesId("grenoble"))
-    print "Alive at grenoble:", len(iotlab.getAliveList(
-            "grenoble", "m3:at86rf231"))
+    #print "Alive at grenoble:", len(iotlab.getAliveList(
+    #        "grenoble", "m3:at86rf231"))
+    #open("grenoble-res.pydat","w").write(
+    #    repr(iotlab.getResources("grenoble")))
+    #open("grenoble-res-id.pydat","w").write(
+    #    repr(iotlab.getResourcesId("grenoble")))
+
+    #open("all-res.pydat","w").write(
+    #    repr(iotlab.getResources()))
+    #open("all-res-id.pydat","w").write(
+    #    repr(iotlab.getResourcesId()))
 
     print "--- List of sites"
     pprint.pprint(iotlab.getSiteList())

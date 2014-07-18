@@ -15,6 +15,8 @@ import argparse
 import IotlabHelper
 from IotlabHelper import extractNodeId, AllPossibleNodes
 
+import ExpGui # comment if pb and you don't need a GUI
+
 #---------------------------------------------------------------------------
 # utils
 #---------------------------------------------------------------------------
@@ -142,6 +144,12 @@ def cmdInfo(args):
     iotlab, exp = getHelperAndExp(args)
     pprint.pprint(exp.getPersistentInfo())
 
+#---------------------------------------------------------------------------    
+
+def cmdGui(args):
+    iotlab, exp = getHelperAndExp(args)
+    ExpGui.runGui(iotlab, exp)
+
 #---------------------------------------------------------------------------
 # Special processing for "init": launch the Experiment script
 #---------------------------------------------------------------------------
@@ -184,9 +192,15 @@ for nodeCmd in ["reset", "stop", "start"]:
 
 foren6SniffersParser = subparsers.add_parser("foren6-sniffers")
 foren6SniffersParser.add_argument("--output", type=str, default="socat",
-                                  choices=["wireshark", "tshark", "socat"])
+                                  choices=["wireshark", "tshark", "socat",
+                                           "wireshark+socat"])
+#foren6SniffersParser.add_argument("--output-zep", action="store_true",
+#                                  default=False)
+
 
 foren6Parser = subparsers.add_parser("foren6")
+
+guiParser = subparsers.add_parser("gui")
 
 args = parser.parse_args()
 
@@ -207,6 +221,8 @@ elif args.command == "foren6-sniffers":
     cmdForen6Sniffers(args)
 elif args.command == "foren6":
     cmdForen6(args)
+elif args.command == "gui":
+    cmdGui(args)
 elif args.command in nodeCmdParserTable:
     cmdNodeCmd(args)
 else: raise RuntimeError("Unexpected command", args.command)

@@ -290,7 +290,8 @@ def runAsCommand():
                           default="dump")
 
     ncParser.add_argument("--output", type=str,
-                          choices=["wireshark", "socat", "tshark", "text"],
+                          choices=["wireshark", "socat", "tshark", "text",
+                                   "wireshark+socat"],
                           default="wireshark")
 
 
@@ -312,6 +313,12 @@ def runAsCommand():
                 outputObserver = SnifferHelper.ZepSenderObserver()
             elif args.output == "socat":
                 outputObserver = SnifferHelper.SocatObserver()
+            elif args.output == "wireshark+socat":
+                observer1 = SnifferHelper.ZepSenderObserver()
+                observer1 = SnifferHelper.UniquePacketObserver(observer1)
+                observer2 = SnifferHelper.SocatObserver()
+                outputObserver = SnifferHelper.TeePacketObserver(
+                    observer1, observer2)
             elif args.output == "tshark":
                 outputObserver = SnifferHelper.TsharkSenderObserver()
             elif args.output == "text":
@@ -319,7 +326,7 @@ def runAsCommand():
             else: raise ValueError("Unknown output type", args.output)
 
             if args.unique:
-                outputObserver = SnifferHelper.UniqueFilterObserver(
+                outputObserver = SnifferHelper.UniquePacketObserver(
                     outputObserver)
 
             if args.record_packet != None:

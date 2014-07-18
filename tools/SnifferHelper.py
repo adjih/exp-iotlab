@@ -329,7 +329,7 @@ class TextDisplayObserver:
 # Unique
 #---------------------------------------------------------------------------
 
-class UniqueFilterObserver:
+class UniquePacketObserver:
     def __init__(self, observer):
         self.observer = observer
         self.maxNbPacket = 100
@@ -363,6 +363,15 @@ class RecordPacketObserver:
             self.observer.notifyPacket(info)
         
     # XXX: self.f.close() at exit
+
+class TeePacketObserver:
+    def __init__(self, observer1, observer2):
+        self.observer1 = observer1
+        self.observer2 = observer2
+
+    def notifyPacket(self, info):
+        self.observer1.notifyPacket(info)
+        self.observer2.notifyPacket(info)
 
 #---------------------------------------------------------------------------
 
