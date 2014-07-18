@@ -65,7 +65,7 @@ zepSnifferList, currentNodeList = exp.ensureFlashedStdNodes(
 #    currentNodeList)
 
 nodeRouterList, currentNodeList = exp.ensureFlashedStdNodes(
-    "silent", AllPossibleNodes, currentNodeList, True)
+    "default", AllPossibleNodes, currentNodeList, True)
 
 #--------------------------------------------------
 # Save scenario

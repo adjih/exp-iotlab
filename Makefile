@@ -173,7 +173,8 @@ prepare-openlab: ensure-pkg-cmake ensure-pkg-g++ ensure-openlab
 
 USE_OPENLAB_DEFS=. ${CURDIR}/local/src/local.profile
 
-OPENLAB_EXAMPLE=example_soft_timer_delay
+#OPENLAB_EXAMPLE=example_soft_timer_delay
+OPENLAB_EXAMPLE=example_event
 
 ensure-openlab-example-m3: \
   iot-lab/parts/openlab/build.m3/bin/${OPENLAB_EXAMPLE}.elf
@@ -247,6 +248,9 @@ openwsn:
 openwsn/openwsn-fw:
 	make openwsn
 	git clone ${GIT_OPENWSN_FW} openwsn/openwsn-fw
+	cd openwsn/openwsn-fw/firmware/openos/bsp/boards/iot-lab_M3 \
+        && mv uart.c uart.c-orig \
+        && sed s/115200/500000/g < uart.c-orig > uart.c
 
 openwsn/openwsn-sw:
 	make openwsn
@@ -807,7 +811,8 @@ ${HOME}/.iotlabrc:
 contiki-rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
    ensure-all-iot-lab \
-   ensure-pkg-roxterm ensure-pkg-socat
+   ensure-pkg-roxterm ensure-pkg-socat \
+   ensure-openlab-example-m3
 
 #ensure-pkg-wireshark ensure-pkg-paramiko
 

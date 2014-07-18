@@ -222,13 +222,26 @@ class IotlabExp:
 TypeToFirmware = {
     "foren6-sniffer":
         "../iot-lab/parts/openlab/build.m3/bin/foren6_sniffer.elf",
-    "silent":
+    "tutorial":
         "../iot-lab/parts/openlab/build.m3/bin/tutorial_m3.elf",
+    "default":
+        "../iot-lab/parts/openlab/build.m3/bin/example_event.elf",
     "zep-sniffer":
         "../iot-lab/parts/openlab/build.m3/bin/zep_sniffer.elf",
     "zep-sniffer-a8-m3":
-        "../iot-lab/parts/openlab/build.a8-m3/bin/zep_sniffer.elf"
+        "../iot-lab/parts/openlab/build.a8-m3/bin/zep_sniffer.elf",
+    "contiki-rpl-node":
+        "../iot-lab/parts/contiki/examples/ipv6/http-server/http-server.iotlab-m3",
+    "contiki-border-router":
+        "../iot-lab/parts/contiki/examples/ipv6/rpl-border-router/border-router.iotlab-m3",
+    "riot":
+        "XXX",
+    "openwsn":
+        "openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog",
+    "openwsn-sink":
+        "openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog"
 }
+
 
 #SnifferFwFileName = "PreCompiled/foren6_sniffer.elf"
 # TunslipBinFileName = "sudo ../local/bin/tunslip6 aaaa::1/64 -L -a localhost -p 2000"

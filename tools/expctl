@@ -191,7 +191,8 @@ for nodeCmd in ["reset", "stop", "start"]:
     nodeCmdParserTable[nodeCmd] = nodeCmd
 
 foren6SniffersParser = subparsers.add_parser("foren6-sniffers")
-foren6SniffersParser.add_argument("--output", type=str, default="socat",
+foren6SniffersParser.add_argument("--output", type=str, 
+                                  default="wireshark+socat",
                                   choices=["wireshark", "tshark", "socat",
                                            "wireshark+socat"])
 #foren6SniffersParser.add_argument("--output-zep", action="store_true",
