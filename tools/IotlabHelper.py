@@ -336,34 +336,56 @@ class IotlabPersistentExp(IotlabExp):
     
     #--------------------------------------------------
 
+    def _unassociateFlashedNodes(self, expInfo, nodeList):
+        # XXX: Not so efficient
+        if "nodeInfoByType" not in expInfo:
+            return
+        nodeSet = set(nodeList)
+        for nodeTypeInfo in expInfo["nodeInfoByType"].values():
+            # XXX: this might not preserve order ?
+            nodeTypeInfo["nodes"] = list(set(nodeTypeInfo["nodes"]
+                                             ).difference(nodeSet))
+
     def recordFlashedNodes(self, nodeTypeName, nodeList, firmwareFileName):
         expInfo = self.getPersistentInfo()
+        self._unassociateFlashedNodes(expInfo, nodeList)
         if "nodeInfoByType" not in expInfo:
             expInfo["nodeInfoByType"] = {}
-        expInfo["nodeInfoByType"][nodeTypeName] = {
-            "nodes": nodeList,
-            "firmware": firmwareFileName
-            }
+        if nodeTypeName not in expInfo["nodeInfoByType"]:
+            expInfo["nodeInfoByType"][nodeTypeName] = {}
+        nodeTypeInfo = expInfo["nodeInfoByType"][nodeTypeName]
+        if "nodes" not in nodeTypeInfo:
+            nodeTypeInfo["nodes"] = nodeList
+        if "firmware" in nodeTypeInfo:
+            if (nodeTypeInfo["firmware"] != firmwareFileName):
+                raise RuntimeError(
+                    "Inconsistent firmware",
+                    (nodeTypeName, nodeTypeInfo["firmware"], firmwareFileName))
+        else: nodeTypeInfo["firmware"] = firmwareFileName
+            
+        nodeTypeInfo["nodes"].extend(nodeList)
+        assert nodeTypeInfo["firmware"] == firmwareFileName
         self.savePersistentInfo(expInfo) # XXX: maybe not now
 
     def ensureFlashedNodes(self, nodeTypeName, firmwareFileName, 
                            nodeCount, initialNodeList):
         expInfo = self.getPersistentInfo()
-        if nodeTypeName not in expInfo:
-            flashedNodeList, currentNodeList = self.safeFlashNodes(
-                firmwareFileName, nodeCount, initialNodeList)
-            assert (nodeCount == AllPossibleNodes 
-                    or len(flashedNodeList) == nodeCount)
-            self.recordFlashedNodes(nodeTypeName, flashedNodeList, 
-                                    firmwareFileName)
-        else:
-            flashedNodeList = expInfo["nodesInfoByType"][nodeTypeName]
-            currentNodeList = initialNodeList[:]
-            if (len(flashedNodeList) != nodeCount 
-                and nodeCount != AllPossibleNodes):
-                raise RuntimeError("Inconsistent number of flashed nodes",
-                                   (flashedNodeList, nodeCount))
-            print ". using already flashed '%s'" % reprNodeList(flashedNodeList)
+        #if nodeTypeName not in expInfo:
+         
+        flashedNodeList, currentNodeList = self.safeFlashNodes(
+            firmwareFileName, nodeCount, initialNodeList)
+        assert (nodeCount == AllPossibleNodes 
+                or len(flashedNodeList) == nodeCount)
+        self.recordFlashedNodes(nodeTypeName, flashedNodeList, 
+                                firmwareFileName)
+        #else:
+        #    flashedNodeList = expInfo["nodesInfoByType"][nodeTypeName]
+        #    currentNodeList = initialNodeList[:]
+        #    if (len(flashedNodeList) != nodeCount 
+        #        and nodeCount != AllPossibleNodes):
+        #        raise RuntimeError("Inconsistent number of flashed nodes",
+        #                           (flashedNodeList, nodeCount))
+        #    print ". using already flashed '%s'" % reprNodeList(flashedNodeList)
         for address in flashedNodeList:
             if address in currentNodeList:
                 currentNodeList.remove(address)
@@ -477,7 +499,7 @@ class IotlabHelper:
         expList = self.getExpInfoList(["Running", "Waiting", "Launching",
                                        "toLaunch"])
         expList = [exp for exp in expList 
-                   if not exp["name"].startswith("Demo_")]
+                   if not exp["name"].startswith("Demo_")] # XXX!!
         if len(expList) >= MaxExp:
             self.error("%s experiment(s) already running/waiting:\n"
                        % len(expList) 

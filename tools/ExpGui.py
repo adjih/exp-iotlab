@@ -93,6 +93,15 @@ class ExpModel:
         self.nodeOfType = nodeOfType
         #print xPosMin, xPosMax, yPosMin, yPosMax
 
+    def getNodeListOfType(self, typeName):
+        expInfo = self.exp.getPersistentInfo()
+        nodeInfoByType = expInfo["nodeInfoByType"]
+        if typeName not in nodeInfoByType:
+            return []
+        else:
+            result = nodeInfoByType[typeName]["nodes"]
+            return [extractNodeId(node) for node in result]
+
 #---------------------------------------------------------------------------
 
 
@@ -117,6 +126,8 @@ class ExpViewController:
         self.model = model
         self.selectedNodeList = []
         self.mode = "view"
+        self.yInfoSize = 60
+        self.currentType = None
 
     def show(self):
         self.loop()
@@ -144,13 +155,36 @@ class ExpViewController:
         xRel = (x-self.xPosMin) / (self.xPosMax-self.xPosMin)
         yRel = (y-self.yPosMin) / (self.yPosMax-self.yPosMin)
         x = self.margin + xRel * (self.xSize - 2*self.margin)
-        y = self.margin + yRel * (self.ySize - 2*self.margin)
+        y = self.margin + yRel * (self.ySize - self.yInfoSize- 2*self.margin)
         return x,y
 
     def toggleSelection(self):
         # unused
-        if self.mode == "view": self.mode = "selection"
-        else: self.mode = "view"
+        if self.currentType == None:
+            self.selectedNodeList = []
+        else: self.selectedNodeList = self.model.getNodeListOfType(
+            self.currentType)
+
+    def updateCurrentType(self, delta):
+        typeList = IotlabHelper.TypeToFirmware.keys()
+        if self.currentType == None or not self.currentType in typeList:
+            self.currentType = typeList[0]
+        typeIdx = typeList.index(self.currentType)
+        newTypeIdx = (typeIdx+delta) % len(typeList)
+        assert 0 <= newTypeIdx < len(typeList)
+        self.currentType = typeList[newTypeIdx]
+
+    def flashSelectedNodes(self):
+        if self.currentType == None: 
+            return
+        if len(self.selectedNodeList) == 0:
+            return
+        cmd = ("./expctl flash " 
+               + " --type %s" % self.currentType
+               + " "+ " ".join(
+                ["m3-%s" % x for x in self.selectedNodeList])) # XXX: not only m3
+        print "+", cmd
+        os.system(cmd)
 
     def loop(self):
         self.isFinished = False
@@ -165,14 +199,16 @@ class ExpViewController:
                         self.clearSelected()
                     elif event.key == pygame.K_s:
                         self.toggleSelection()
+                    elif event.key == pygame.K_f:
+                        self.flashSelectedNodes()
                     elif event.key == pygame.K_r:
                         self.redraw()
-                    elif event.key == pygame.K_p:
-                        self.band += 1
-                        self.redraw() 
-                    elif event.key == pygame.K_m:
-                        self.band -= 1
-                        self.redraw()                                         
+                    elif (event.key == pygame.K_p
+                          or event.unicode == u'+'): 
+                        self.updateCurrentType(+1)
+                    elif (event.unicode == u'-'
+                          or event.key == pygame.K_m):
+                        self.updateCurrentType(-1)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.eventMouse(pygame.mouse.get_pos(), event.button)
 
@@ -202,7 +238,16 @@ class ExpViewController:
     def clearSelected(self):
         self.selectedNodeList = []
 
+    def _drawStatusLine(self):
+        if self.currentType ==  None:
+            status = ""
+        else: status = self.currentType
+        msg = self.font.render(status, True, (0,0,255))
+        self.screen.blit(msg, (0,self.ySize-self.yInfoSize))
+
     def drawExp(self):
+        self.clear()
+        self._drawStatusLine()
         posOfNode = self.model.posOfNode
         self.xPosMin, self.xPosMax = self.model.xPosMin, self.model.xPosMax
         self.yPosMin, self.yPosMax = self.model.yPosMin, self.model.yPosMax
@@ -214,7 +259,7 @@ class ExpViewController:
         colorOfType = {
             "zep-sniffer": (255,255,0),
             "foren6-sniffer": (255,0,0),
-            "http-rpl-node": (0,0,255),
+            "contiki-rpl-node": (0,0,255),
             "border-router": (0,255,0)
             }
 

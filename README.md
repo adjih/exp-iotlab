@@ -33,26 +33,32 @@ For more automation, two parts are added (really a byproduct):
 
 # tl;dr
 
-1) Configure your ssh config properly to access IoT-LAB servers.
+(this was not tested, under construction, some parts will fail for now)
 
-2) Get an Ubuntu 12.04 or 14.04 (ever real or in a VM). Install a schroot-ed
-Ubuntu 14.04:
+1) Get Ubuntu 14.04 32 bits in a VM (VirtualBox, vmware, ...)
+
+2) In the newly installed Ubuntu 14.04 in a VM:
+```sudo apt-get install git```
+
+3) 
 ```
 git clone https://github.com/adjih/exp-iotlab.git
-cd exp-iotlab/tools/system && sudo ./create-schroot.sh
+cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
 ```
 
-3) Start your schroot-ed Ubuntu 14.04:
+4) Configure properly your ssh acces to IoT-LAB sites
+
+5) Get necessary code
 ```
-cd exp-iotlab && make go-trusty
+make contiki-rpl-exp-deps
 ```
 
-4) Start a Contiki RPL experiment in the newly appeared roxterm
+6) Start a Contiki RPL experiment:
 ```
-cd tools && python ExpContikiRpl.py --site grenoble --nb-nodes 8 --nb-sniffers 2 --duration 10
+cd tools && ./expctl init ExpContikiRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20 && python TkExp.py
 ```
 
-See details below.
+Alternatively you can use a schroot system (see below), but it is just more complicated.
 
 ---------------------------------------------------------------------------
 
@@ -150,3 +156,5 @@ Your home directory will be available as usual (due to schroot configuration),
 but otherwise the system will be the one is $HOME/System-Ubuntu-14.04
 
 ---------------------------------------------------------------------------
+
+

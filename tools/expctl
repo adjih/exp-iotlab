@@ -151,6 +151,39 @@ def cmdGui(args):
     ExpGui.runGui(iotlab, exp)
 
 #---------------------------------------------------------------------------
+
+def cmdFlash(args):
+    iotlab, exp = getHelperAndExp(args)
+    expInfo = exp.getPersistentInfo()
+    if args.type == None and args.firmware == None:
+        raise RuntimeError("don't know what to flash")
+    expServer = None
+
+    nodeList = []
+    for nodeStr in args.nodeList:
+        if nodeStr.startswith(":"):
+            subNodeList = expInfo["nodeInfoByType"].get(nodeStr[1:], None)
+            if subNodeList == None:
+                print "(warning: no nodes of type %s)" % nodeStr[1:]
+                continue
+            subNodeList = subNodeList["nodes"]
+        else:
+            if not nodeStr.startswith("m3"): #XXX
+                nodeStr = "m3-%s" % int(nodeStr)
+            if nodeStr.find(".") < 0:
+                if expServer == None:
+                    expServer = IotlabHelper.getExpUniqueServer(exp)
+                nodeStr += "." + expServer
+            subNodeList = [nodeStr]
+        nodeList.extend(subNodeList)
+
+    if args.type != None:
+        exp.ensureFlashedStdNodes(args.type, len(nodeList), nodeList)
+    else:
+        exp.ensureFlashedNodes(os.path.basename(args.firmware), 
+                               args.firmware, len(nodeList), nodeList)
+
+#---------------------------------------------------------------------------
 # Special processing for "init": launch the Experiment script
 #---------------------------------------------------------------------------
 
@@ -171,9 +204,11 @@ subparsers = parser.add_subparsers(dest="command")
 
 infoParser = subparsers.add_parser("info")
 
-reflashParser = subparsers.add_parser("reflash")
-reflashParser.add_argument("typeList", nargs="+")
-    
+flashParser = subparsers.add_parser("flash")
+flashParser.add_argument("nodeList", nargs="+")
+flashParser.add_argument("--firmware", type=str, default=None)
+flashParser.add_argument("--type", type=str, default=None)
+
 sshForwardParser = subparsers.add_parser("ssh-forward")
 sshForwardParser.add_argument("--start-port", type=int, 
                               default=SshTunnelStartPort)
@@ -210,8 +245,8 @@ if args.exp_id == None:
     print "(no experiment id specified, using last one: exp %s)" % expId
     args.exp_id = expId
 
-if args.command == "reflash":
-    cmdReflash(args)
+if args.command == "flash":
+    cmdFlash(args)
 elif args.command == "info":
     cmdInfo(args)
 elif args.command == "ssh-forward":
