@@ -35,7 +35,7 @@ cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
 
 4) Automatically get and compile necessary packages and code from repositories
 ```
-make contiki-rpl-exp-deps
+make rpl-exp-deps
 ```
 
 5) Configure properly your ssh access to IoT-LAB sites.
@@ -50,10 +50,19 @@ IdentityFile ~/.ssh/id_rsa
 #            ^^^^^^^^^^^^^ the key you have put in IoT-LAB registration
 ```
 
-6) Start a RPL experiment at strasbourg site:
+6) Use [auth-cli](https://github.com/iot-lab/iot-lab/wiki/CLI-Tools) to store your IoT-LAB password:
+
+```
+cd exp-iotlab
+make ensure-auth-info IOTLAB_USER=<YOUR_IOTLAB_USER_NAME>
+```
+(this just runs ```./iotlab/parts/cli-tools/auth-cli -u <IoT-LAB username>```)
+
+
+7) Start a RPL experiment at strasbourg site for instance:
 ```
 cd tools
-./expctl init ExpRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20 
+./expctl init ExpRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20
 python TkExp.py
 ```
 
@@ -80,9 +89,33 @@ For more automation, two parts are added (really a byproduct):
 
 # Experiments
 
+Currently, there is one script that evolved in integrating multiple
+functionalities. It is: "tools/ExpRpl.py"
+
 ```
-TODO
+usage: ExpRpl.py [-h] [--name NAME] [--site SITE] [--nb-nodes NBNODES]
+                 [--duration DURATION] [--dev DEV]
+                 [--nb-foren6-sniffers NBFOREN6SNIFFERS]
+                 [--nb-zep-sniffers NBZEPSNIFFERS]
+                 [--exp-type {contiki,riot,openwsn}]
+                 [--nb-protocol-nodes NB_PROTOCOL_NODES]
+
+IoT-LAB experiment
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --name NAME
+  --site SITE
+  --nb-nodes NBNODES
+  --duration DURATION
+  --dev DEV
+  --nb-foren6-sniffers NBFOREN6SNIFFERS
+  --nb-zep-sniffers NBZEPSNIFFERS
+  --exp-type {contiki,riot,openwsn}
+  --nb-protocol-nodes NB_PROTOCOL_NODES
 ```
+
+Only the "contiki" experiment is tested.
 
 ---------------------------------------------------------------------------
 

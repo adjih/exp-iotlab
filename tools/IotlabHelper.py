@@ -173,7 +173,7 @@ class IotlabExp:
     def safeFlashNodes(self, firmwareFileName, nodeCount, initialNodeList, 
                        verbose=True, shouldTryOnce=False):
         """Flash nodes until the exact number `nodeCount' is successfully 
-        flashed. Nodes are flashing in the order of `initialNodeList'.
+        flashed. Nodes are flashed in the order of `initialNodeList'.
         If `nodeCount' is None, all nodes are flashed, and only once."""
         if nodeCount == 0:
             return [], initialNodeList[:]
@@ -189,14 +189,13 @@ class IotlabExp:
             nodeCount = len(nodeList)
             tryOnce = True
         else: tryOnce = shouldTryOnce
-        while nodeCount > 0: #len(flashedNodeList):
+
+        while nodeCount > 0:
             countDown -= 1
             if countDown == 0: # don't flash forever
                 raise RuntimeError("Too many flash attempts")
             if nodeCount > len(nodeList):
                 print nodeCount, len(nodeList), nodeList, firmwareFileName
-                #print ("Warning: Not enough available nodes in experiment", 
-                #                   (nodeList, nodeCount))
                 raise RuntimeError("Not enough available nodes in experiment", 
                                    (nodeList, nodeCount))
             tentativeNodeList = nodeList[:nodeCount]
@@ -358,7 +357,7 @@ class IotlabPersistentExp(IotlabExp):
             expInfo["nodeInfoByType"][nodeTypeName] = {}
         nodeTypeInfo = expInfo["nodeInfoByType"][nodeTypeName]
         if "nodes" not in nodeTypeInfo:
-            nodeTypeInfo["nodes"] = nodeList
+            nodeTypeInfo["nodes"] = []
         if "firmware" in nodeTypeInfo:
             if (nodeTypeInfo["firmware"] != firmwareFileName):
                 raise RuntimeError(
@@ -377,10 +376,12 @@ class IotlabPersistentExp(IotlabExp):
          
         flashedNodeList, currentNodeList = self.safeFlashNodes(
             firmwareFileName, nodeCount, initialNodeList)
+
         assert (nodeCount == AllPossibleNodes 
                 or len(flashedNodeList) == nodeCount)
         self.recordFlashedNodes(nodeTypeName, flashedNodeList, 
                                 firmwareFileName)
+
         #else:
         #    flashedNodeList = expInfo["nodesInfoByType"][nodeTypeName]
         #    currentNodeList = initialNodeList[:]
@@ -392,6 +393,7 @@ class IotlabPersistentExp(IotlabExp):
         for address in flashedNodeList:
             if address in currentNodeList:
                 currentNodeList.remove(address)
+
         return flashedNodeList, currentNodeList
 
     def ensureFlashedStdNodes(self, nodeTypeName, nodeCount, nodeList,
