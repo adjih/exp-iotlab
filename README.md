@@ -14,7 +14,7 @@ and [wiki](https://github.com/iot-lab/iot-lab).
 
 # tl;dr
 
-This is *work in progress*.
+This is *work in progress* (probably some of the following as to be adjusted):
 
 This is a "quick" way to set experiments using the parts documented below,
 is to install a system in a VM, and then run the scripts/makefiles that
