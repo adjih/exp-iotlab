@@ -10,11 +10,11 @@ found on main [FIT IoT-LaB site](https://www.iot-lab.info),
 on FIT IoT-LAB [github site](https://github.com/iot-lab/iot-lab)
 and [wiki](https://github.com/iot-lab/iot-lab).
 
+This is *work in progress* (probably some of the following as to be adjusted):
+
 ---------------------------------------------------------------------------
 
-# tl;dr
-
-This is *work in progress* (probably some of the following as to be adjusted):
+# Installing a VM with all software and tools
 
 This is a "quick" way to set experiments using the parts documented below,
 is to install a system in a VM, and then run the scripts/makefiles that
@@ -59,153 +59,97 @@ make ensure-auth-info IOTLAB_USER=<YOUR_IOTLAB_USER_NAME>
 (this just runs ```./iotlab/parts/cli-tools/auth-cli -u <IoT-LAB username>```)
 
 
-7) Start a RPL experiment at strasbourg site for instance:
+7) Start a RPL experiment as described in the next section.
+
+---------------------------------------------------------------------------
+
+# Launching an experiment
+
+Once the step of the previous section have been followed, 
+you can start an experiment.
+
+The experiment is essentially the one described by
+IoT-LAB tutorial for [contiki IPv6 stack and tools](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/), refer to this page to really understand
+what is happening :)
+
 ```
 cd tools
 ./expctl init ExpRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20
+```
+This will start an experiment of duration 20 minutes,
+with 8 nodes at the site of "strasbourg",
+flashed according to instructions of the command line:
+- It will be a "contiki" experiment by default, hence one of the nodes will
+  be implicitely a "border-router".
+- 2 of the nodes will be sniffers (with foren6 format).
+- the remaining nodes will be flashed with "default" firmware (without radio,
+  actually: [example_event](https://github.com/hikob/openlab/tree/master/appli/examples/event) from IoT-LAB/openlab).
+
+Note that if an experiment is currently running, the script will reuse it.
+
+8) Run the gui launcher
+```
 python TkExp.py
 ```
 
-Alternatively you can use a schroot system (see below), but it is a little more complicated.
+Then proceed as follows:
+
+- click on "forw.ports" to establish a ssh tunnel to the nodes (border router and sniffers),
+  A terminal should appear running an 
+  ```ssh ... -L ... -L ...``` command (as a byproduct you would have to 
+  type your ssh key passphrase).
+- click on "tunslip6". This will start tunslip6
+  (as described in [tutorial](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/), step 7, but this is automated here).
+- click on "reset BR". This will reset the border router and will confirm
+  that everything is well connected. After  a small delay 
+  you should see ```Starting 'Border router process' 'Web server'```
+- you should be able to access the web server in your web-browser with an
+  address such as: ```http://[aaaa::323:4501:984:343]```.
+  See [tutorial](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/ for details. 
+- click on "foren6-sniffers". This will start a program connecting to the
+  sniffer nodes, reading their serial (foren6/snif format), and:
+  * outputting the packets in the "snif" format on pty /tmp/myttyS0
+  * outputting the packets in the ZEP format (UDP) on loopback
+- click on "wireshark". After some warnings (due to sudo wireshark),
+  wireshark would start. You should see the RPL DODAGs, and router advertizements from the border router.
+- click on "foren6". This will start foren6.
+  It needs to be configured along to the steps given in the IoT-LAB tutorial [HOWTO use Foren6](https://github.com/iot-lab/iot-lab/wiki/HOWTO-use-Foren6-to-diagnose-in-realtime-your-6LoWPAN-experiment).
+  * click on manage sources, and add: Target=`/tmp/myttyS0` Type=`snif`
+  (channel irrelevant)
+  * click on start -> you should see a node
+- you should be seeing one single circle. This is the border router.
+- now comes the TODO part :). You can start the other (unfinished) "GUI" with 
+  by clicking on "GUI", and a new window with points appears after 2 sec or so:
+  * points are nodes. gray = not reserved, green = border router, 
+    red = sniffer, black = default-firmware (the one doing nothing on the radio). Note that sites are in 3D, whereas the map is in 2D, so
+    some nodes are "hidden" (currently).
+  * select some black nodes by right clicking (their center becomes yellow)
+    (remember that some nodes are hidden due to 3D -> 2D).
+  * press several times on the secret key "+", to select the firmware
+    "contiki-rpl-node".
+  * once this is done, press on the key "f", to flash the selected nodes
+    (the ones with yellow), with contiki firmware. Be sure to check output
+    on the terminal. 
+  * looking at wireshark, the newly flashed nodes should be sending RPL DIS
+    messages (DODAG Information Sollicitation) until they join the network, 
+    and then RPL DIO messages (DODAG Information Object).
+  * looking at foren6, notice that new nodes have appeared 
+    _Currently the graph might not be displayed instantly, 
+       this requires investigation_
+  * refreshing the web page of the router you can see the actual addresses
+    of the nodes
+  * you can ping the nodes, with ```ping6 -s1 <IPv6 address of the node>```.
+    ICMP Echo messages goe through the border router, and then on the air
+    as 6LoWPAN packets (using the routes discovered by RPL). You should see
+    packets-on-the-air with wireshark.
+  * you can also directly access the nodes through the web interface.
+
+At the end, you should get something like the following screenshot:
+
+![Screenshot](doc/rpl-exp.png)
+
 
 ---------------------------------------------------------------------------
 
-
-The main idea is to automatically run some experiments on FIT IoT-LAB
-(see section [Experiments](#Experiments)):
-* A thin Python module is provided, that can be used to write Python scripts, to start, stop, check start of an experiment. 
-It uses the IoT-LAB utilities, modules and REST API.
-* A few sample experiments *will* be provided.
-
-For more automation, two parts are added (really a byproduct):
-* A Makefile that could be a starting point to automatically retrieve
-  some packages/components/modules/etc. (e.g. `git clone <RIOT>` or `sudo apt-get install wireshark`)
-* Because the Makefile assumes some kind of Ubuntu distribution, 
-  a script is provided to construct a proper schroot-ed environment.
-  This also allows installation of packages without messing up your
-  actual system.
-
----------------------------------------------------------------------------
-
-# Experiments
-
-Currently, there is one script that evolved in integrating multiple
-functionalities. It is: "tools/ExpRpl.py"
-
-```
-usage: ExpRpl.py [-h] [--name NAME] [--site SITE] [--nb-nodes NBNODES]
-                 [--duration DURATION] [--dev DEV]
-                 [--nb-foren6-sniffers NBFOREN6SNIFFERS]
-                 [--nb-zep-sniffers NBZEPSNIFFERS]
-                 [--exp-type {contiki,riot,openwsn}]
-                 [--nb-protocol-nodes NB_PROTOCOL_NODES]
-
-IoT-LAB experiment
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --name NAME
-  --site SITE
-  --nb-nodes NBNODES
-  --duration DURATION
-  --dev DEV
-  --nb-foren6-sniffers NBFOREN6SNIFFERS
-  --nb-zep-sniffers NBZEPSNIFFERS
-  --exp-type {contiki,riot,openwsn}
-  --nb-protocol-nodes NB_PROTOCOL_NODES
-```
-
-Only the "contiki" experiment is tested.
-
----------------------------------------------------------------------------
-
-# Automatic Download/Install/Compilation
-
-A `Makefile` is provided that attempts to automatically download the
-requirements for different experiments. 
-NOTE: the Makefile is far from being a well-thought Makefile that
-would properly automatically recompile on any change.
-
-This is done because testing
-different IoT systems (RIOT, OpenWSN, Contiki) on IoT-LAB requires
-a bit of manual work, and I was too lazy to repeat it several times :)
-
-```
-TODO
-```
-
-## 
-
-```
-TODO
-```
-
-## OpenWSN
-
-```
-TODO
-```
-
-## RIOT
-
-```
-TODO
-```
-
----------------------------------------------------------------------------
-
----------------------------------------------------------------------------
-
-# Schroot system
-
-
-## Who can use this ?
-
-This is tested on the following systems: Ubuntu 12.04 (32 bits) and Ubuntu 14.04 (64 bits). Other Ubuntu (or Debian) versions might work; other
-systems (such as Arch Linux) could require more manual installation
-(read  tools/system/create-schroot.sh).
-
-## What is it ?
-
-A schroot system is a way to run binaries from another system,
-without installing a virtual machine. Essentially, you can
-install (part of) another Ubuntu distribution in a directory, and
-then run shells, commands, install packages, inside this distribution.
-
-More information on [Ubuntu wiki](https://wiki.ubuntu.com/DebootstrapChroot)
-for instance.
-
-The system is installed by the scripts is: _Ubuntu 14.04 LTS (Trusty Tahr)_.
-
-
-## How to install ?
-
-Installation
-```
-cd tools/system
-sudo ./create-schroot.sh
-```
-
-This will perform the following steps:
-* it will install schroot if not installed, and update the configuration
-  file for the following (name: `trusty`).
-  
-* it will install a Ubuntu-14.04 (Trusty Tahr) distribution in your home directory 
-  ${HOME}/System-Ubuntu-14.04.
-
-* it will install a few more packages for that Ubuntu.
-
-## How to use ?
-
-Once installed, you can just switch to that environment with:
-
-```
-schroot -c trusty
-```
-
-Your home directory will be available as usual (due to schroot configuration), 
-but otherwise the system will be the one is $HOME/System-Ubuntu-14.04
-
----------------------------------------------------------------------------
-
+(Alternatively to a VM, you can use a schroot system instead of a VM, but it is a little more complicated). More unfinished info on [README-more.md](README-more.md).
 
