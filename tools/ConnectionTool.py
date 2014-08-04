@@ -294,7 +294,6 @@ def runAsCommand():
                                    "wireshark+socat"],
                           default="wireshark")
 
-
     ncParser.add_argument("--record-packet", type=str, default=None)
     ncParser.add_argument("--record", type=str, default=None)
 

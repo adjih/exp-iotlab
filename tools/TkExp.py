@@ -19,25 +19,9 @@ CommandList = [
     ("reset BR", "./expctl reset border-router"),
     ("foren6-sniffers", "./expctl foren6-sniffers"),
     ("foren6", "./expctl foren6"),
-    ("gui", "./expctl gui")
-]
-
-ExtraCommandList = [
-    ("compile-hello", "cd ~/Common/CA/hipercom/node_ui && PATH=/opt/msp430-gcc-4.4.5/bin:$PATH && make TARGET=z1 clean && make TARGET=z1  && echo 'done.'"),
-    ("flash-hello", "cd ~/Common/HA  && ./hlab flash-all --exp-conf exp-hello.conf && echo 'done.'"),
-    ("all-mote", "cd ~/Common/HA  && ./hlab all-mote-list --summary"),
-    ("Xnest", " { Xnest :2 & } ; sleep 1 ; { xterm -display :2 & } ; { DISPLAY=:2 ; wmii & } "),
-    ("run-hello", "cd ~/Common/HA  && python run-hello.py"),
-    ("run-hello :2", "xterm -display :2 -e 'cd ~/Common/HA  && python run-hello.py' &"),
-    ("start-rpl-9 :2", "ssh -i ~/.ssh/id_dsa.smartmesh hipercom@manet18.inria.fr 'cd ~/Common/CA/hipercom/node_ui && ./hctl --mote-id 9 start-rpl'"),
-    ("TkSMesh", "ssh -f -X -i ~/.ssh/id_dsa.smartmesh hipercom@manet19.inria.fr 'cd ~/Common/CA/hipercom/node_ui && python TkSmartMesh.py --mote-id 3 &' &"),
-    ("HelloAnalysis", "cd ~/Common/HA && python HelloAnalysis.py"),
-
-    ("compile-smartmesh", "cd ~/Common/smartmesh/contiki-senslab/hipercom/node_ui && PATH=/opt/msp430-gcc-4.4.5/bin:$PATH && make TARGET=z1 clean && make TARGET=z1 ; echo 'done.'"),
-    ("flash-smartmesh", "cd ~/Common/HA && ./hlab flash-all --exp-conf exp-smartmesh.conf && echo 'done.'"),
-
-    ("compile-control", "cd ~/Common/smartmesh/contiki-senslab/hipercom/node_ui && PATH=/opt/msp430-gcc-4.4.5/bin:$PATH && make TARGET=z1 clean && make TARGET=z1 && cd ~/Common/CA/hipercom/node_ui && make TARGET=z1 clean && make TARGET=z1 ; echo 'done.'"),
-    ("flash-control", "cd ~/Common/HA && ./hlab flash-all --exp-conf exp-control.conf && echo 'done.'"),
+    ("wireshark", 'sudo wireshark -k -i lo -Y "zep and icmpv6" &'),
+    ("gui", "./expctl gui &"),
+    ("shake", """roxterm --fork -T shake -e bash -c 'W=$(wmctrl -l | grep -i foren6 | cut "-d " -f1); echo "moving window $W (foren6) constantly" ; D=0.1 ; U=350; V=351 ; while true ; do wmctrl -i -r $W -e 0,-1,$U,-1,-1 ; wmctrl -i -r $W -e 0,-1,$V,-1,-1 ; sleep $D ; done'""")
 ]
 
 if "only-control" in argList:

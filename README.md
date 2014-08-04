@@ -2,7 +2,6 @@
 
 ---------------------------------------------------------------------------
 
-
 A few misc. utilities for automating experiments with IoT-LAB ( https://www.iot-lab.info ).
 
 This is more of a personnal repository, released in case they would be
@@ -13,7 +12,54 @@ and [wiki](https://github.com/iot-lab/iot-lab).
 
 ---------------------------------------------------------------------------
 
-This is *work in progress*
+# tl;dr
+
+This is *work in progress*.
+
+This is a "quick" way to set experiments using the parts documented below,
+is to install a system in a VM, and then run the scripts/makefiles that
+automatically install/download for you.
+ 
+(this was not fully tested, under construction, some parts might fail for now)
+
+1) Get Ubuntu 14.04 32 bits in a VM (VirtualBox, vmware, ...)
+
+2) In the newly installed Ubuntu 14.04 in a VM:
+```sudo apt-get install git```
+
+3) Automatically update the system with proper packages
+```
+git clone https://github.com/adjih/exp-iotlab.git
+cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
+```
+
+4) Automatically get and compile necessary packages and code from repositories
+```
+make contiki-rpl-exp-deps
+```
+
+5) Configure properly your ssh access to IoT-LAB sites.
+Generate/use a ssh key documented in [ssh IoT-LAB tutorial](https://www.iot-lab.info/tutorials/configure-your-ssh-access/)
+
+Then, ensure that you have something like this in your .ssh/config:
+``# Configuration
+Host *.iot-lab.info
+User <YOUR_IOTLAB_USER_NAME>
+IdentityFile ~/.ssh/id_rsa 
+#            ^^^^^^^^^^^^^ the key you have put in IoT-LAB registration
+```
+
+6) Start a RPL experiment at strasbourg site:
+```
+cd tools
+./expctl init ExpRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20 
+python TkExp.py
+```
+
+Alternatively you can use a schroot system (see below), but it is a little more complicated.
+
+---------------------------------------------------------------------------
+
 
 The main idea is to automatically run some experiments on FIT IoT-LAB
 (see section [Experiments](#Experiments)):
@@ -28,37 +74,6 @@ For more automation, two parts are added (really a byproduct):
   a script is provided to construct a proper schroot-ed environment.
   This also allows installation of packages without messing up your
   actual system.
-
----------------------------------------------------------------------------
-
-# tl;dr
-
-(this was not tested, under construction, some parts will fail for now)
-
-1) Get Ubuntu 14.04 32 bits in a VM (VirtualBox, vmware, ...)
-
-2) In the newly installed Ubuntu 14.04 in a VM:
-```sudo apt-get install git```
-
-3) 
-```
-git clone https://github.com/adjih/exp-iotlab.git
-cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
-```
-
-4) Configure properly your ssh acces to IoT-LAB sites
-
-5) Get necessary code
-```
-make contiki-rpl-exp-deps
-```
-
-6) Start a Contiki RPL experiment:
-```
-cd tools && ./expctl init ExpContikiRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20 && python TkExp.py
-```
-
-Alternatively you can use a schroot system (see below), but it is just more complicated.
 
 ---------------------------------------------------------------------------
 
@@ -102,6 +117,8 @@ TODO
 ```
 TODO
 ```
+
+---------------------------------------------------------------------------
 
 ---------------------------------------------------------------------------
 

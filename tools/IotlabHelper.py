@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------
 
 import sys, argparse, pprint, os, time, random
-import json, subprocess
+import json, subprocess, re
 sys.path.append("../iot-lab/parts/cli-tools")
 
 from iotlabcli import rest, helpers, experiment
@@ -194,6 +194,9 @@ class IotlabExp:
             if countDown == 0: # don't flash forever
                 raise RuntimeError("Too many flash attempts")
             if nodeCount > len(nodeList):
+                print nodeCount, len(nodeList), nodeList, firmwareFileName
+                #print ("Warning: Not enough available nodes in experiment", 
+                #                   (nodeList, nodeCount))
                 raise RuntimeError("Not enough available nodes in experiment", 
                                    (nodeList, nodeCount))
             tentativeNodeList = nodeList[:nodeCount]
@@ -237,9 +240,9 @@ TypeToFirmware = {
     "riot":
         "XXX",
     "openwsn":
-        "openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog",
+        "../openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog",
     "openwsn-sink":
-        "openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog"
+        "../openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog"
 }
 
 
@@ -418,6 +421,7 @@ MaxExp = 1
 
 class IotlabHelper:
     def __init__(self, expServer=None):
+        self.expServer = expServer
         name, password = getCredentialsOrFail(self)
         if expServer == None:
             serverUrl = getServerRestUrl()
@@ -529,6 +533,52 @@ class IotlabHelper:
         self.addProfile(NameEmptyProfileM3, EmptyProfileM3)
         return NameEmptyProfileM3
 
+#---------------------------------------------------------------------------
+# Management of "groups"
+# XXX - this is really ad-hoc and should be changed
+#---------------------------------------------------------------------------
+
+GroupDir = "Groups"
+
+GroupFileNameTemplate= "group-%s.json"
+
+rGroup = re.compile(GroupFileNameTemplate % "(.+)")
+
+class GroupManager:
+    def __init__(self):
+        if not os.path.exists(GroupDir):
+            os.mkdir(GroupDir)
+
+    def getGroupList(self):
+        fileList = os.listdir(GroupDir)
+        return [ rGroup.match(name).group(1) 
+                 for name in fileList if rGroup.match(name) ]
+
+    def readGroup(self, groupName):
+        return fromJson(readFile(self.getFileName(groupName)))
+
+    def hasGroup(self, groupName):
+        fileName = self.getFileName(groupName)
+        return os.path.exists(fileName)
+        
+    def writeGroup(self, groupName, nodeList):
+        fileName = self.getFileName(groupName)
+        writeFile(fileName, toJson(nodeList))
+
+    def deleteGroup(self, groupName):
+        fileName = self.getFileName(groupName)
+        os.remove(fileName)
+
+    def getFileName(self, groupName):
+        return os.path.join(GroupDir, GroupFileNameTemplate % groupName)
+
+def testGroupManager():
+    groupManager = GroupManager()
+    print groupManager.getGroupList()
+    groupManager.writeGroup("test-foren6", [1,2,3,4,9])
+    print groupManager.getGroupList()
+    for groupName in groupManager.getGroupList():
+        print groupName, groupManager.readGroup(groupName)
 
 #---------------------------------------------------------------------------
 # More utilities functions
@@ -549,6 +599,10 @@ def parserAddTypicalArgs(parser, defaultName):
                         type=int, default=0)
     parser.add_argument("--nb-zep-sniffers", dest="nbZepSniffers", 
                         type=int, default=0)
+    parser.add_argument("--exp-type", type=str,
+                        choices=["contiki", "riot", "openwsn"],
+                        default="contiki")
+    parser.add_argument("--nb-protocol-nodes", type=int, default=0)
 
 def ensureExperimentFromArgs(args):
     iotlab = IotlabHelper(args.dev)

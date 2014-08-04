@@ -43,27 +43,59 @@ exp.makeLastSymLink() # XXX: cannot run multiple simultaneous exp. with this
 
 random.seed(0) # for random order of sniffers
 
-BorderRouterPriorityList = [69,68,65,63,61]
-
 nodeList = exp.getNodeList()
-currentNodeList = IotlabHelper.sortNodeByPriority(
-    nodeList, BorderRouterPriorityList)
+currentNodeList = nodeList[:]
 
-borderRouterList, currentNodeList = exp.ensureFlashedNodes(
-    "border-router", BorderRouterFwFileName, 1, currentNodeList)
-assert len(borderRouterList) == 1
-borderRouterNode = borderRouterList[0]
+if args.exp_type == "contiki":
 
+    #BorderRouterPriorityList = [69,68,65,63,61]
+    BorderRouterPriorityList = [178,175,174,171,169,167]
+    currentNodeList = IotlabHelper.sortNodeByPriority(
+        currentNodeList, BorderRouterPriorityList)
+
+    borderRouterList, currentNodeList = exp.ensureFlashedNodes(
+        "border-router", BorderRouterFwFileName, 1, currentNodeList)
+    print borderRouterList
+    assert len(borderRouterList) == 1
+    borderRouterNode = borderRouterList[0]
+
+    #nodeRouterList, currentNodeList = exp.ensureFlashedNodes(
+    #    "http-rpl-node", NodeFwFileName, AllPossibleNodes, 
+    #    currentNodeList)
+    contikiRouterList, currentNodeList = exp.ensureFlashedStdNodes(
+        "contiki-rpl-node", args.nb_protocol_nodes, currentNodeList, True)
+
+elif args.exp_type == "openwsn":
+
+    BorderRouterPriorityList = [349,348,346,344,342,339]
+    currentNodeList = IotlabHelper.sortNodeByPriority(
+        currentNodeList, BorderRouterPriorityList)
+
+    OpenWSNRouterFwFileName = "../openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog"
+
+    borderRouterList, currentNodeList = exp.ensureFlashedNodes(
+        "openwsn-sink", OpenWSNRouterFwFileName, 1, currentNodeList)
+    print borderRouterList
+    assert len(borderRouterList) == 1
+    borderRouterNode = borderRouterList[0]
+
+    openwsnRouterList, currentNodeList = exp.ensureFlashedStdNodes(
+        "openwsn", args.nb_protocol_nodes, currentNodeList, True)
+
+elif args.exp_type == "riot":
+    riotRouterList, currentNodeList = exp.ensureFlashedStdNodes(
+        "riot", args.nb_protocol_nodes, currentNodeList, True)
+
+else: raise RuntimeError("Unknown type of experiment", args.expType)
+
+# Sniffer nodes
 foren6SnifferList, currentNodeList = exp.ensureFlashedStdNodes(
     "foren6-sniffer", args.nbForen6Sniffers, currentNodeList, True)
 
 zepSnifferList, currentNodeList = exp.ensureFlashedStdNodes(
     "zep-sniffer", args.nbZepSniffers, currentNodeList, True)
 
-#nodeRouterList, currentNodeList = exp.ensureFlashedNodes(
-#    "http-rpl-node", NodeFwFileName, AllPossibleNodes, 
-#    currentNodeList)
-
+# Flash remaining nodes with 'default' (no radio) nodes
 nodeRouterList, currentNodeList = exp.ensureFlashedStdNodes(
     "default", AllPossibleNodes, currentNodeList, True)
 
@@ -75,7 +107,6 @@ expInfo = exp.getPersistentInfo()
 expInfo["name"] = ExperimentName
 expInfo["args"] = vars(args)
 expInfo["failed"] = currentNodeList
-expInfo["extraPortForward"] = [borderRouterNode]
 exp.savePersistentInfo(expInfo)
 
 #---------------------------------------------------------------------------

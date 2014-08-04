@@ -6,11 +6,11 @@
 # Cedric Adjih - Inria - 2014
 #---------------------------------------------------------------------------
 
+default: help
+
 # All repositories variables are set in:
 include Makefile.defs
 -include Makefile-local.defs
-
-default: help
 
 #===========================================================================
 #===========================================================================
@@ -289,6 +289,10 @@ firmware/openos/projects/common/03oos_openwsn_prog:
 
 build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
+        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
+
+build-openwsn-sink-m3: ensure-openwsn-build-deps
+	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw-sink \
         && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
 
 build-openwsn-a8-m3: ensure-openwsn-build-deps
@@ -808,7 +812,7 @@ ${HOME}/.iotlabrc:
 
 #---------------------------------------------------------------------------
 
-contiki-rpl-exp-deps: \
+rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
    ensure-all-iot-lab \
    ensure-pkg-roxterm ensure-pkg-socat \
@@ -816,8 +820,8 @@ contiki-rpl-exp-deps: \
 
 #ensure-pkg-wireshark ensure-pkg-paramiko
 
-run-contiki-rpl-experiment: contiki-rpl-exp-deps
-	cd tools && python ExpContikiRpl.py --site grenoble --nb 10
+run-rpl-experiment: rpl-exp-deps
+	cd tools && python ExpRpl.py --site grenoble --nb 10
 
 #---------------------------------------------------------------------------
 

@@ -16,6 +16,7 @@ from __future__ import division
 import time, json, sys, argparse, pprint
 import IotlabHelper
 from IotlabHelper import extractNodeId, fromJson, toJson
+import Foren6Helper
 
 import pygame
 import pygame.gfxdraw
@@ -24,6 +25,8 @@ from pygame.locals import *
 import os
 #os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (1*1920,0)
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,0)
+
+DisplayHack = True
 
 #---------------------------------------------------------------------------
 
@@ -41,9 +44,19 @@ class ExpModel:
         self.exp = exp
         self.view = None
         self.updateInfo()
+        self.groupManager = IotlabHelper.GroupManager()
 
     def setView(self, view):
         self.view = view
+
+    def reloadInfo(self):
+        # XXX: why need this?
+        #iotlab, exp = getHelperAndExp(args)
+        self.iotlab = IotlabHelper.IotlabHelper(self.iotlab.expServer)
+        self.exp = self.iotlab._makeExp(self.exp.expId)
+        #exp = iotlab._makeExp(args.exp_id)
+        self.updateInfo()
+
 
     def updateInfo(self):
 
@@ -75,14 +88,26 @@ class ExpModel:
                        if info["archi"] == archi 
                        and info["state"] in ("Alive", "Busy")]
 
+        if DisplayHack:
+            nodePosList = [(extractNodeId(info["network_address"]), 
+                            (-float(info["y"]), float(info["x"]), float(info["z"])))
+                           for info in siteInfo
+                           if info["archi"] == archi 
+                           and info["state"] in ("Alive", "Busy")]
+
+
         expInfo = self.exp.getPersistentInfo()
         nodeInfoByType = expInfo["nodeInfoByType"]
+        #print nodeInfoByType.get("contiki-rpl-node")
 
         self.posOfNode = dict(nodePosList)
         nodeOfType = {}
+        rplNodes = set()
         for typeName, info in nodeInfoByType.iteritems():
             nodeOfType[typeName] = [ extractNodeId(node)
                                      for node in info["nodes"] ]
+            if typeName in ["border-router", "contiki-rpl-node"]:
+                rplNodes = rplNodes.union(set(nodeOfType[typeName]))
 
         #print posOfNode
         xPosList = [x for x,y,z in self.posOfNode.itervalues()]
@@ -93,6 +118,46 @@ class ExpModel:
         self.nodeOfType = nodeOfType
         #print xPosMin, xPosMax, yPosMin, yPosMax
 
+        self.nodeInfo = {}
+        layoutInfoList = []
+        nodeInfoFileName = "grenoble-node.txt"
+        if os.path.exists(nodeInfoFileName):  #XXX!! big hack
+            f = open(nodeInfoFileName)
+            for line in f.readlines():
+                line = line.strip()
+                if len(line) == 0:
+                    continue
+                tokens = [x for x in line.split(" ") if x != ""]
+                addressParts = tokens[0].split(":")
+                nodeId = extractNodeId(tokens[1])
+                address = "aaaa::200:0:0:" + addressParts[4]
+                host = tokens[2]
+                self.nodeInfo[nodeId] = (address, host)
+                if nodeId not in rplNodes:
+                    continue
+                # XXX!! another hack
+                if nodeId not in self.posOfNode:
+                    print "(cannot find node %s)" % nodeId
+                    continue
+                x,y,z = self.posOfNode[nodeId]
+                if DisplayHack and x > 21.85:
+                    continue
+                sx,sy = 4.5, 3.0
+                ox,oy = -60,-30
+                layoutInfo = { "x": (x-self.xPosMin)*sx +ox, 
+                               "y": (y-self.yPosMin)*sy +oy, 
+                               "id": addressParts[4],
+                               "name": "n%s" %nodeId }
+                layoutInfoList.append(layoutInfo)
+        
+        # Another hack
+        layoutStr = Foren6Helper.genLayoutFile(layoutInfoList, scale=5.0)
+        IotlabHelper.writeFile("sample.ini", layoutStr)
+
+
+    def getNodeList(self):
+        return [extractNodeId(address) for address in self.expNodeList]
+
     def getNodeListOfType(self, typeName):
         expInfo = self.exp.getPersistentInfo()
         nodeInfoByType = expInfo["nodeInfoByType"]
@@ -101,6 +166,11 @@ class ExpModel:
         else:
             result = nodeInfoByType[typeName]["nodes"]
             return [extractNodeId(node) for node in result]
+
+    def getGroupList(self): return self.groupManager.getGroupList()
+
+    def getNodeInfo(self, nodeId):
+        return self.nodeInfo.get(nodeId, ("",""))
 
 #---------------------------------------------------------------------------
 
@@ -128,6 +198,9 @@ class ExpViewController:
         self.mode = "view"
         self.yInfoSize = 60
         self.currentType = None
+        self.currentGroup = None
+        self.currentNodeInfo = None
+        self.lastNodeId = None
 
     def show(self):
         self.loop()
@@ -158,13 +231,6 @@ class ExpViewController:
         y = self.margin + yRel * (self.ySize - self.yInfoSize- 2*self.margin)
         return x,y
 
-    def toggleSelection(self):
-        # unused
-        if self.currentType == None:
-            self.selectedNodeList = []
-        else: self.selectedNodeList = self.model.getNodeListOfType(
-            self.currentType)
-
     def updateCurrentType(self, delta):
         typeList = IotlabHelper.TypeToFirmware.keys()
         if self.currentType == None or not self.currentType in typeList:
@@ -174,17 +240,84 @@ class ExpViewController:
         assert 0 <= newTypeIdx < len(typeList)
         self.currentType = typeList[newTypeIdx]
 
+    def updateCurrentGroup(self, delta):
+        groupList = self.model.getGroupList()
+        if len(groupList) == 0:
+            self.currentGroup = None
+            return
+        if self.currentGroup == None or not self.currentGroup in groupList:
+            self.currentGroup = groupList[0]
+        groupIdx = groupList.index(self.currentGroup)
+        newGroupIdx = (groupIdx+delta) % len(groupList)
+        assert 0 <= newGroupIdx < len(groupList)
+        self.currentGroup = groupList[newGroupIdx]
+        
+    def newGroup(self):
+        groupList = self.model.getGroupList()
+        idx = 0
+        while "%s"%idx in groupList:
+            idx += 1
+        self.model.groupManager.writeGroup("%s"%idx, self.selectedNodeList)
+        self.currentGroup = "%s" % idx
+        print "<new group %s>" % self.currentGroup
+        self.model.updateInfo()
+
+    def deleteGroup(self):
+        if self.currentGroup == None:
+            print "<no group>"
+            return
+        groupList = self.model.groupManager.deleteGroup(self.currentGroup)
+        self.currentGroup = None
+
+
     def flashSelectedNodes(self):
         if self.currentType == None: 
             return
+        opt = " --type %s " % self.currentType
         if len(self.selectedNodeList) == 0:
             return
-        cmd = ("./expctl flash " 
-               + " --type %s" % self.currentType
+        cmd = ("./expctl flash "
+               + opt
                + " "+ " ".join(
                 ["m3-%s" % x for x in self.selectedNodeList])) # XXX: not only m3
         print "+", cmd
         os.system(cmd)
+        self.model.reloadInfo()
+        #return self.cmdSelectedNodes("flash", opt)
+
+    def cmdSelectedNodes(self, cmd, opt=""):
+        if len(self.selectedNodeList) == 0:
+            return
+        cmd = ("./expctl %s-node " % cmd
+               + opt
+               + " "+ " ".join(
+                ["m3-%s.grenoble.iot-lab.info" % x for x in self.selectedNodeList])) # XXX: not only m3 XXX!!! not onyl grenoble
+        print "+", cmd
+        os.system(cmd)
+        self.model.updateInfo()
+
+    def cmdPingLastNode(self):
+        if self.lastNodeId == None or self.currentNodeInfo == None:
+            print "<no last node>"
+            return
+        title1 = "ping6 [%s]" % self.currentNodeInfo
+        address = [x for x in self.currentNodeInfo.split(" ") if x != ""][1] # XXX!!!!
+        title2 = "Node %s" % self.lastNodeId
+        cmd = "sudo ping6 -s1 %s" % (address)
+        os.system("roxterm --fork -T '%s' -n '%s' -e bash -c '%s ; sleep 10'"
+                  % (title1, title2, cmd))
+
+    def selectGroup(self):
+        if self.currentGroup == None:
+            print "<no group>"
+            return
+        self.selectedNodeList = self.model.groupManager.readGroup(
+            self.currentGroup)
+        nodeSet = set(self.model.getNodeList())
+        self.selectedNodeList = [nodeId 
+                                 for nodeId in self.selectedNodeList
+                                 if nodeId in nodeSet]
+
 
     def loop(self):
         self.isFinished = False
@@ -197,18 +330,40 @@ class ExpViewController:
                         self.isFinished = True
                     elif event.key == pygame.K_c:
                         self.clearSelected()
-                    elif event.key == pygame.K_s:
-                        self.toggleSelection()
-                    elif event.key == pygame.K_f:
-                        self.flashSelectedNodes()
-                    elif event.key == pygame.K_r:
-                        self.redraw()
-                    elif (event.key == pygame.K_p
-                          or event.unicode == u'+'): 
+                    elif (#event.key == pygame.K_p or 
+                          event.unicode == u'+'): 
                         self.updateCurrentType(+1)
                     elif (event.unicode == u'-'
                           or event.key == pygame.K_m):
                         self.updateCurrentType(-1)
+
+                    elif event.key == pygame.K_n:
+                        self.newGroup()
+                    #elif event.key == pygame.K_d:
+                    #    self.deleteGroup()
+                    elif event.key == pygame.K_l: #XXX
+                        print self.model.groupManager.getGroupList()
+                    elif event.key == pygame.K_g:
+                        self.selectGroup()
+                    #elif event.key == pygame.K_G:
+                    #    self.saveGroup()
+                    elif event.key == pygame.K_u:
+                        self.model.reloadInfo()
+
+                    elif event.key == pygame.K_f:
+                        self.flashSelectedNodes()
+                    elif event.key == pygame.K_r:
+                        self.cmdSelectedNodes("reset")
+                    elif event.key == pygame.K_d:
+                        self.cmdSelectedNodes("stop")
+                    elif event.key == pygame.K_e:
+                        self.cmdSelectedNodes("start")
+                    elif event.key == pygame.K_p:
+                        self.cmdPingLastNode()
+                    elif event.unicode == u'[':
+                        self.updateCurrentGroup(-1)
+                    elif event.unicode == u']':
+                        self.updateCurrentGroup(+1)
                 elif event.type == pygame.MOUSEBUTTONUP:
                     self.eventMouse(pygame.mouse.get_pos(), event.button)
 
@@ -228,6 +383,18 @@ class ExpViewController:
 
     def eventMouse(self, pos, button):
         nodeId = findClosest(self.viewNodeList, pos)
+        if button == 1:
+            self.eventMouseSelect(nodeId)
+        else: self.eventMouseStatus(nodeId)
+
+    def eventMouseStatus(self, nodeId):
+        self.currentNodeInfo = ("%s   " % nodeId 
+                                + " ".join(self.model.getNodeInfo(nodeId)))
+        self.lastNodeInfo = nodeId
+        self.lastNodeId = nodeId
+        print self.currentNodeInfo
+    
+    def eventMouseSelect(self, nodeId):
         if nodeId in self.selectedNodeList:
             self.selectedNodeList.remove(nodeId)
             print "-", nodeId
@@ -237,6 +404,9 @@ class ExpViewController:
 
     def clearSelected(self):
         self.selectedNodeList = []
+        self.currentNodeInfo = None
+        self.lastNodeId = None
+        self.lastNodeInfo = None
 
     def _drawStatusLine(self):
         if self.currentType ==  None:
@@ -245,12 +415,24 @@ class ExpViewController:
         msg = self.font.render(status, True, (0,0,255))
         self.screen.blit(msg, (0,self.ySize-self.yInfoSize))
 
+        if self.currentGroup ==  None:
+            status = ""
+        else: status = self.currentGroup
+        msg = self.font.render(status, True, (0,0,255))
+        self.screen.blit(msg, (self.xSize//2,self.ySize-self.yInfoSize))
+
+        if self.currentNodeInfo != None:
+            msg = self.font.render(self.currentNodeInfo, True, (0,0,255))
+            self.screen.blit(msg, (0,self.ySize-self.yInfoSize//2))
+
+
     def drawExp(self):
         self.clear()
         self._drawStatusLine()
         posOfNode = self.model.posOfNode
         self.xPosMin, self.xPosMax = self.model.xPosMin, self.model.xPosMax
         self.yPosMin, self.yPosMax = self.model.yPosMin, self.model.yPosMax
+        if DisplayHack: self.yPosMax = 21.85
         typeOfNode = dict(
             [(node, typeName) 
              for (typeName, nodeList) in self.model.nodeOfType.iteritems()
@@ -260,23 +442,30 @@ class ExpViewController:
             "zep-sniffer": (255,255,0),
             "foren6-sniffer": (255,0,0),
             "contiki-rpl-node": (0,0,255),
-            "border-router": (0,255,0)
+            "border-router": (0,255,0),
+            "openwsn": (0,0,127),
+            "openwsn-sink": (0,255,255),
             }
 
         self.viewNodeList = []
 
         for nodeId, (xPos, yPos, zPos) in posOfNode.iteritems():
+            if DisplayHack and yPos > 21.85:
+                continue
             xx,yy = self.posToScreen(xPos,yPos)
             color = (127,127,255)
-            #print typeOfNode.get(nodeId)
-            color = colorOfType.get(typeOfNode.get(nodeId), (0,0,0))
+            nodeType = typeOfNode.get(nodeId)
+            color = colorOfType.get(nodeType, (0,0,0))
+            if nodeType == None:
+                color = (127,127,127)
             nodeSize = 10
             self.drawCircle(xx, yy, nodeSize, color)
             if nodeId in self.selectedNodeList:
                 selectedColor = (255,255,0)
                 self.drawCircle(xx, yy, nodeSize/1.5, selectedColor)
 
-            self.viewNodeList.append((xx,yy,nodeId))
+            if nodeType != None:
+                self.viewNodeList.append((xx,yy,nodeId))
 
 #---------------------------------------------------------------------------
 

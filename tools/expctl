@@ -48,7 +48,8 @@ def getProcessManager(exp):
 # Commands
 #---------------------------------------------------------------------------
 
-ForwardedTypeList = ["border-router", "zep-sniffer", "foren6-sniffer"]
+ForwardedTypeList = ["border-router", "zep-sniffer", "foren6-sniffer",
+                     "openwsn", "openwsn-sink"]
 
 def cmdSshForward(args):
     iotlab, exp = getHelperAndExp(args)
@@ -127,7 +128,11 @@ def cmdForen6(args):
 
 #---------------------------------------------------------------------------
 
-def cmdNodeCmd(args):
+#XXX: this is a big hack
+def registerNodeState(command, nodeList):
+    print command, nodeList
+
+def cmdNodeTypeCmd(args):
     iotlab, exp = getHelperAndExp(args)
     expInfo = exp.getPersistentInfo()
     nodeList = []
@@ -136,6 +141,17 @@ def cmdNodeCmd(args):
         nodeList.extend(typeInfo["nodes"])
     print "+", args.command, " ".join(nodeList)
     result = exp.doNodeCmd(args.command, nodeList)
+    registerNodeState(args.command, nodeList)
+    pprint.pprint(result)
+
+def cmdNodeCmd(args):
+    iotlab, exp = getHelperAndExp(args)
+    expInfo = exp.getPersistentInfo()
+    nodeList = args.nodeList
+    print "+", args.command, " ".join(nodeList)
+    realCmd = args.command.split("-")[0]
+    result = exp.doNodeCmd(realCmd, nodeList)
+    registerNodeState(realCmd, nodeList)
     pprint.pprint(result)
 
 #---------------------------------------------------------------------------    
@@ -219,11 +235,18 @@ sshForwardParser = subparsers.add_parser("ssh-forward")
 sshForwardParser.add_argument("--start-port", type=int, 
                               default=SshTunnelStartPort)
 
+nodeTypeCmdParserTable = {}
+for nodeTypeCmd in ["reset", "stop", "start"]:
+    nodeTypeCmdParser = subparsers.add_parser(nodeTypeCmd)
+    nodeTypeCmdParser.add_argument("typeList", nargs="+")
+    nodeTypeCmdParserTable[nodeTypeCmd] = nodeTypeCmd
+
 nodeCmdParserTable = {}
-for nodeCmd in ["reset", "stop", "start"]:
+for nodeCmd in ["reset-node", "stop-node", "start-node"]:
     nodeCmdParser = subparsers.add_parser(nodeCmd)
-    nodeCmdParser.add_argument("typeList", nargs="+")
+    nodeCmdParser.add_argument("nodeList", nargs="+")
     nodeCmdParserTable[nodeCmd] = nodeCmd
+
 
 foren6SniffersParser = subparsers.add_parser("foren6-sniffers")
 foren6SniffersParser.add_argument("--output", type=str, 
@@ -261,6 +284,8 @@ elif args.command == "gui":
     cmdGui(args)
 elif args.command in nodeCmdParserTable:
     cmdNodeCmd(args)
+elif args.command in nodeTypeCmdParserTable:
+    cmdNodeTypeCmd(args)
 else: raise RuntimeError("Unexpected command", args.command)
 
 #---------------------------------------------------------------------------
