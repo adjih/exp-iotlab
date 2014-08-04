@@ -42,7 +42,8 @@ make contiki-rpl-exp-deps
 Generate/use a ssh key documented in [ssh IoT-LAB tutorial](https://www.iot-lab.info/tutorials/configure-your-ssh-access/)
 
 Then, ensure that you have something like this in your .ssh/config:
-``# Configuration
+```
+# Configuration
 Host *.iot-lab.info
 User <YOUR_IOTLAB_USER_NAME>
 IdentityFile ~/.ssh/id_rsa 
