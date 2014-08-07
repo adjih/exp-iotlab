@@ -48,13 +48,8 @@ class NodeIO:
 
 #---------------------------------------------------------------------------
 
-class RadioExperiment(threading.Thread):
+class RadioExperiment:
     def __init__(self, iotlab, exp, control):
-        threading.Thread.__init__(self)
-        self.name = 'ioThread'
-        self.daemon = True
-        self.queue = Queue.Queue()
-
         self.iotlab = iotlab
         self.exp = exp
         forwardByType = IotlabHelper.fromJson(
@@ -78,12 +73,7 @@ class RadioExperiment(threading.Thread):
 
     def startExp(self):
         print "Starting experiment."
-        self.control.putQueue(("start", self))
-        while True:
-            msg = self.queue.get()
-            if msg[0] == "send-all":
-                print "send-all", repr(msg[1])
-                self.sendAll(msg[1])
+        self.control.start(self)
 
     def sendAll(self, command):
         for i in range(self.nbNode):
@@ -120,88 +110,29 @@ class RadioExperiment(threading.Thread):
     # Callback from observees NodeIO
     def notifyLine(self, nodeIO, line):
         print nodeIO
-        self.control.putQueue(line)
+        self.control.notifyLine(line)
         #print "+", nodeIO, line
-
-    #---------------------------------------------------------------------------
-        
-    def putQueue(self, data): # thread-safe
-        self.queue.put(data)
-
 
 #---------------------------------------------------------------------------
 
-import threading, Queue, traceback, sys, os
+class RadioExperimentControl:
+    def __init__(self):
+       self.radioExp = None
 
-# A perfect use case for threads
-class RadioExperimentControl(threading.Thread):
-    def __init__(self, radioExp = None):
-        threading.Thread.__init__(self)
-        self.name = 'controlThread'
-        self.daemon = True
-        self.queue = Queue.Queue()
+    def notifyLine(self, nodeIO, line):
+        print nodeIO, line
+
+    def start(self, radioExp):
         self.radioExp = radioExp
-
-    def putQueue(self, data): # thread-safe
-        self.queue.put(data)
-        
-    def run(self):
-        try:
-            self.doRun()
-        except:
-            traceback.print_exc(file=sys.stdout)
-            os._exit(1)
-            thread.interrupt_main()
-
-    def doRun(self):
-        print "+ running control thread"
-        cmd, data = self.queue.get()
-        if cmd != "start":
-            raise ValueError("pop queue -> not 'start'", (cmd,data))
-        self.radioExp = data
-
-        while not self.checkInvalid():
-            print "+ synchronizing"
-
-    def checkInvalid(self):
-        self.send("invalid\n", 1.0)
-
-    def send(self, message, timeOut):
-        timeOutTimer = self.setTimeOut(timeOut)
-        self.radioExp.putQueue(("send-all", message))
-        while True:
-            cmd, data = self.queue.get()
-            print cmd, data
-        self.cancelTimeOut(timeOutTimer)
-
-    def setTimeOut(self, timeOut):
-        return threading.Timer(timeOut, 
-                               lambda: self.queue.put(("time-out",None)))
-  
-    def cancelTimeOut(self, timeOutTimer):
-        timeOutTimer.cancel()
-        if not self.queue.empty():
-            print "warning XXX"
 
 #---------------------------------------------------------------------------
 
 control = RadioExperimentControl()
-control.start()
-
 radioExp = RadioExperiment(iotlab, exp, control)
 connectionManager = ConnectionTool.ConnectionManager(
     args, radioExp.getLocalAddressList(), radioExp)
 radioExp.setConnectionManager(connectionManager)
-radioExp.start()
-
-#---------------------------------------------------------------------------
-
-threadList = [control, radioExp]
-
-import time
-
-while True:
-    time.sleep(100)
+radioExp.run()
 
 #---------------------------------------------------------------------------
 
