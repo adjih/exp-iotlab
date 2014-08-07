@@ -445,6 +445,7 @@ class ExpViewController:
             "border-router": (0,255,0),
             "openwsn": (0,0,127),
             "openwsn-sink": (0,255,255),
+            "hipera": (127,255,127)
             }
 
         self.viewNodeList = []

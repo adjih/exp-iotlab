@@ -310,6 +310,8 @@ class ZepSenderObserver(ZepSender):
         self.sendAsZep(infoTuple)
 
 #---------------------------------------------------------------------------
+#
+#---------------------------------------------------------------------------
 
 def asHex(data):
     return " ".join(["%02x" % ord(x) for x in data])
@@ -324,6 +326,32 @@ class TextDisplayObserver:
         print info["clock"], "@%s"%info["snifferId"],
         #print getHash(info["packet"]), 
         print asHex(info["packet"])
+
+class SmartRFSnifferSenderObserver:
+    def __init__(self):
+        self.sd = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.startTime = time.time()
+        self.packetIndex = 0
+
+    def notifyPacket(self, info):
+        Coef = 32000000
+        HeaderSpec = "<BIQB"
+        HeaderSize = struct.calcsize(HeaderSpec)
+        flags = 0
+        size = len(info["packet"])
+        relTime = long((time.time() - self.startTime) * Coef)
+        fcs = "XX" # XXX: not known
+        
+        header = struct.pack(HeaderSpec, flags, self.packetIndex, 
+                             relTime, size)
+        self.packetIndex += 1
+
+        data = header + info["packet"] + fcs
+
+        self.sd.sendto(data, ("", 5000))
+        print info["clock"], "@%s"%info["snifferId"]
+        #print getHash(info["packet"]), 
+        #print asHex(info["packet"])
 
 #---------------------------------------------------------------------------
 # Unique

@@ -241,7 +241,9 @@ TypeToFirmware = {
     "openwsn":
         "../openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog",
     "openwsn-sink":
-        "../openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog"
+        "../openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog",
+    "hipera": # (an in-house stack)
+        "/home/user/HgRep/hipera/platform/freertos/openlab-hiper/build/bin/test_hipera.elf"
 }
 
 
@@ -536,6 +538,36 @@ class IotlabHelper:
         return NameEmptyProfileM3
 
 #---------------------------------------------------------------------------
+
+# XXX: copied from expctl, remove from expctl
+
+def getLastExpId():
+    lastExpLink = os.readlink(LastExpSymLink)
+    rExpId = re.compile(ExpTemplateDir.replace("%s", "([0-9]+)"))
+    mExpId = rExpId.search(lastExpLink)
+    if mExpId == None:
+        raise RuntimeError("Cannot parse %s" % LastExpSymLink,
+                           (ExpTemplateDir, lastExpLink))
+    expId = int(mExpId.group(1))
+    return expId
+
+def setExpIdDefaultAsLastExp(args):
+    if args.exp_id == None:
+        expId = getLastExpId()
+        print "(no experiment using last one: exp %s)" % expId
+        args.exp_id = expId
+
+#XXX: be more clean
+def getHelperAndExp(args, server=None):
+    iotlab = IotlabHelper(server)
+    exp = iotlab._makeExp(args.exp_id)
+    expInfo = exp.getPersistentInfo()
+    if (server == None and "args" in expInfo 
+        and expInfo["args"].get("dev") != None):
+        return getHelperAndExp(args, expInfo["args"]["dev"])
+    else: return iotlab, exp
+
+#---------------------------------------------------------------------------
 # Management of "groups"
 # XXX - this is really ad-hoc and should be changed
 #---------------------------------------------------------------------------
@@ -619,6 +651,27 @@ def ensureExperimentFromArgs(args):
     print ("  experiment id=%s" % (exp.expId))
     exp.waitUntilRunning(verbose=True)
     return iotlab, exp
+
+def parseNodeList(listStr):
+    """ '1+3+5-9' -> [1,3,5,6,7,8,9] """
+    result = []
+    for token in listStr.split("+"):
+        tokenList = token.split("-")
+        assert len(tokenList) in [1,2]
+        if len(tokenList) == 1:
+            result.append(int(tokenList[0]))
+        elif len(tokenList) == 2:
+            for i in range(int(tokenList[0]), int(tokenList[1])+1 ):
+                result.append(i)
+    return result
+
+if False:
+    helper = IotlabHelper()
+    aliveStr = helper.getResourcesId("grenoble")[0]["grenoble"]["m3"]["Alive"]
+    print aliveStr
+    print parseNodeList(aliveStr)
+    print len(parseNodeList(aliveStr))
+    exitw
 
 #---------------------------------------------------------------------------
 # Copied from contiki-senslab-unified/tools/cooja/jython/PySimul.py
@@ -713,3 +766,4 @@ if __name__ == "__main__":
     pprint.pprint(profileList)
 
 #---------------------------------------------------------------------------
+

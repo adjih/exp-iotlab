@@ -35,7 +35,8 @@ def getHelperAndExp(args, server=None):
     iotlab = IotlabHelper.IotlabHelper(server)
     exp = iotlab._makeExp(args.exp_id)
     expInfo = exp.getPersistentInfo()
-    if server == None and expInfo["args"]["dev"] != None:
+    if (server == None and "args" in expInfo 
+        and expInfo["args"].get("dev") != None):
         return getHelperAndExp(args, expInfo["args"]["dev"])
     else: return iotlab, exp
 
@@ -62,11 +63,15 @@ def cmdSshForward(args):
         currentPort[0] += 1
         return result
 
+    forwardedTypeList = ForwardedTypeList[:]
+    if args.type != None:
+        forwardedTypeList.append(args.type)
+
     forwardByType = {}
     redirectList = []
     nodes = []
     for typeName, typeInfo in expInfo["nodeInfoByType"].iteritems():
-        if typeName in ForwardedTypeList:
+        if typeName in forwardedTypeList:
             forwardList = [(node,getNewPort()) for node in typeInfo["nodes"]]
             redirectList.extend(
                 ["-L %s:%s:%s" % (port, node, IotlabHelper.SerialTcpPort)
@@ -225,15 +230,16 @@ flashParser.add_argument("nodeList", nargs="+")
 flashParser.add_argument("--firmware", type=str, default=None)
 flashParser.add_argument("--type", type=str, default=None)
 
-sshForwardParser = subparsers.add_parser("ssh-forward")
-sshForwardParser.add_argument("--start-port", type=int, 
-                              default=SshTunnelStartPort)
+#sshForwardParser = subparsers.add_parser("ssh-forward")
+#sshForwardParser.add_argument("--start-port", type=int, 
+#                              default=SshTunnelStartPort)
 
 tunslip6Parser = subparsers.add_parser("tunslip6")
 
 sshForwardParser = subparsers.add_parser("ssh-forward")
 sshForwardParser.add_argument("--start-port", type=int, 
                               default=SshTunnelStartPort)
+sshForwardParser.add_argument("--type", type=str, default=None)
 
 nodeTypeCmdParserTable = {}
 for nodeTypeCmd in ["reset", "stop", "start"]:
@@ -252,7 +258,8 @@ foren6SniffersParser = subparsers.add_parser("foren6-sniffers")
 foren6SniffersParser.add_argument("--output", type=str, 
                                   default="wireshark+socat",
                                   choices=["wireshark", "tshark", "socat",
-                                           "wireshark+socat"])
+                                           "wireshark+socat",
+                                           "wireshark+smartrf"])
 #foren6SniffersParser.add_argument("--output-zep", action="store_true",
 #                                  default=False)
 

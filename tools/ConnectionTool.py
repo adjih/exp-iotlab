@@ -47,8 +47,6 @@ class SocketConnection:
     def eventInput(self):
         data = self.sd.recv(MaxDataLength)
         if data == "":
-            #print "finished"
-            #finished # XXX:TODO
             print "eof/error with connection #%d" % self.connId
             return
         observer = self.manager.observer
@@ -291,7 +289,7 @@ def runAsCommand():
 
     ncParser.add_argument("--output", type=str,
                           choices=["wireshark", "socat", "tshark", "text",
-                                   "wireshark+socat"],
+                                   "wireshark+socat", "wireshark+smartrf"],
                           default="wireshark")
 
     ncParser.add_argument("--record-packet", type=str, default=None)
@@ -314,6 +312,12 @@ def runAsCommand():
                 outputObserver = SnifferHelper.SocatObserver()
             elif args.output == "wireshark+socat":
                 observer1 = SnifferHelper.ZepSenderObserver()
+                observer1 = SnifferHelper.UniquePacketObserver(observer1)
+                observer2 = SnifferHelper.SocatObserver()
+                outputObserver = SnifferHelper.TeePacketObserver(
+                    observer1, observer2)
+            elif args.output == "wireshark+smartrf":
+                observer1 = SnifferHelper.SmartRFSnifferSenderObserver()
                 observer1 = SnifferHelper.UniquePacketObserver(observer1)
                 observer2 = SnifferHelper.SocatObserver()
                 outputObserver = SnifferHelper.TeePacketObserver(
