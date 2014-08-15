@@ -1,0 +1,48 @@
+===========================================================================
+
+---- radio-exp-1407998940.zip
+
+grenoble, all nodes
+
+nodes=188
+start_time	2014-08-14 08:42:27
+stop_time	2014-08-14 09:45:38
+submission_time	2014-08-14 08:42:26
+
+packetSize = 50
+nbPacket = 100
+delayMs = 1
+channelList = range(11,27)
+powerList = ["0"]
+
+===========================================================================
+
+---- radio-exp-1407975598.zip
+
+grenoble, nodes with topology like this: Γ
+
+nodes=90
+start_time	2014-08-14 02:14:35
+state	Terminated
+stop_time	2014-08-14 07:14:48
+submission_time	2014-08-14 02:14:33
+
+packetSize = 50
+nbPacket = 100
+delayMs = 1
+channelList = range(11,27)
+powerList = ["-17", "-12", "-7", "-3", "0", "1.8", "3"]
+
+===========================================================================
+
+added:
+  +sender, channel, power in burstInfo
+  +uid for all
+
+todo:
+  C code:
+    use a magic header in packets
+    add print soft_timer after clear
+    check type+range of LQI, RSSI
+
+===========================================================================
