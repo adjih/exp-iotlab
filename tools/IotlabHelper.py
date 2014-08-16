@@ -317,6 +317,16 @@ class IotlabPersistentExp(IotlabExp):
 
     #--------------------------------------------------
 
+    def cachedGetResources(self):
+        fileName = "cache-resources.json"
+        if self.hasFile(fileName):
+            return fromJson(self.readFile(fileName))
+        result = self.getResources()
+        self.writeFile(fileName, toJson(result))
+        return result
+
+    #--------------------------------------------------
+
     def ensureDir(self):
         expDir = self.getPath("")
         if not os.path.exists(expDir):

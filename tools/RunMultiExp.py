@@ -121,7 +121,12 @@ dirName = "exp-"+name
 if os.path.exists(dirName):
     raise RuntimeError("not overridding existing dir", dirName)
 os.mkdir(dirName)
-
+info = {
+    "command": sys.argv,
+    "args": repr(args),
+    "config": args.configFileName
+}
+writeFile(J(dirName,"general.pydat"), repr(info))
 
 #-- configure logger
 

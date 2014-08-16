@@ -47,7 +47,10 @@ class SocketConnection:
     def eventInput(self):
         data = self.sd.recv(MaxDataLength)
         if data == "":
-            print "eof/error with connection #%d" % self.connId
+            #print "eof/error with connection #%d (%s:%s)" % (
+            #    self.connId, self.node, self.port)
+            raise RuntimeError("eof/error with connection",
+                               (self.connId, self.node, self.port))
             return
         observer = self.manager.observer
         if observer != None:

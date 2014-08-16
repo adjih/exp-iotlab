@@ -35,14 +35,34 @@ powerList = ["-17", "-12", "-7", "-3", "0", "1.8", "3"]
 
 ===========================================================================
 
+---- radio-exp-1408065672
+
+grenoble, all nodes
+
+2014-08-15 02:58:52
+
+packetSize = 50
+nbPacket = 100
+delayMs = 1
+channelList = [11]
+powerList = ['-17', '-12', '-9', '-7', '-5', '-4', '-3', '-2', '-1', '0', '0.7', '1.3', '1.8', '2.3', '2.8', '3']
+
+Blocked at:
+104 2.8 11 1.11945390701
+105 2.8 11
+
+removed 2.8*, edited meta.pydat
+
+===========================================================================
+
 added:
   +sender, channel, power in burstInfo
   +uid for all
 
 todo:
   C code:
-    use a magic header in packets
-    add print soft_timer after clear
+    +use a magic header in packets
+    +add print soft_timer after clear
     check type+range of LQI, RSSI
 
 ===========================================================================

@@ -829,3 +829,9 @@ riot-rpl-exp-deps: \
    ensure-all-iot-lab
 
 #---------------------------------------------------------------------------
+
+build-radio-test: ensure-openlab-prepare
+	${USE_OPENLAB_DEFS} && cd iot-lab/parts/openlab/build.m3 \
+         && make radio_test
+
+#---------------------------------------------------------------------------

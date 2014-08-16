@@ -2,10 +2,11 @@
 # Cedric Adjih
 #---------------------------------------------------------------------------
 
-from __future__ import print_function
+from __future__ import print_function, division, unicode_literals
+#from __future__ import 
 
 import argparse
-import sys, json, os, pprint
+import sys, json, os, pprint, time
 import tarfile, zipfile
 
 import numpy as np
@@ -135,8 +136,13 @@ class ExperimentParser(FileManager):
             if otherIdx == idx:
                 continue
             if len(eventList) > 0:
-                raise ValueError("unexpected output from receiver", 
-                                 (otherIdx, eventList))
+                if (len(eventList) == 1 
+                    and eventList[0][1].find("invalid handle_irq") >= 0):
+                    print (otherIdx, "ignoring: [%s]" % eventList[0][1], end="")
+                    del eventList[0]
+                else:
+                    raise ValueError("unexpected output from receiver", 
+                                     (otherIdx, eventList))
 
         xmitId = senderInfo["id"]
         senderPacketList = info["cmdXmit"][1]
@@ -146,8 +152,13 @@ class ExperimentParser(FileManager):
         # check receiver output
         for otherIdx, eventList in info["cmdShow"][1].iteritems():
             if len(eventList) >= 2:
-                raise ValueError("multiple output to cmd show",
-                                 eventList)
+                if (len(eventList) == 2 
+                    and eventList[1][1].find("invalid handle_irq") >= 0):
+                    print ("ignoring: [%s]" % eventList[1][1], end="")
+                    del eventList[1]
+                else:
+                    raise ValueError("multiple output to cmd show",
+                                     eventList)
         
         # parse receiver output
         recvTable = {}
@@ -156,8 +167,11 @@ class ExperimentParser(FileManager):
         recvArray = np.zeros((nbNode, nbPacket), np.uint8)
         lqiArray = np.zeros((nbNode, nbPacket), np.uint8)
         rssiArray = np.zeros((nbNode, nbPacket), np.uint8)
+        crcErrorArray = np.zeros((nbNode,),np.uint16)
+        checksumErrorArray = np.zeros((nbNode,),np.uint16)
 
         notSeenSet = set(range(nbNode))
+
         for otherIdx, showStr in info["cmdShow"][0].iteritems():
             assert otherIdx in notSeenSet
             notSeenSet.remove(otherIdx)
@@ -168,6 +182,7 @@ class ExperimentParser(FileManager):
                 print ("\nmultiple changes of xmitId", recvInfo)
             
             countCrcError = 0
+            countChecksumError = 0
             countRecv = 0
             seqNumList = []
             lqiList = []
@@ -175,29 +190,51 @@ class ExperimentParser(FileManager):
             seqNumPreCrcErrorList = []
 
             lastSeqNumOk = 0
+            lastSeqNum = None
             for packetInfo in recvInfo["recv"]:
                 (i,rssi,lqi,ts,te) = packetInfo
                 if packetInfo[0] == 0xffff:
                      countCrcError += 1
                      seqNumPreCrcErrorList.append(lastSeqNumOk)
                      #print (te-ts)
+                elif packetInfo[0] == 0xfffe:
+                    countChecksumError += 1
+                    #assert recvInfo["nbSumError"] > 0
+                    if recvInfo["nbSumError"] == 0:
+                        print ("ignoring inconsistent nbSumError", end="")
+                        pprint.pprint(recvInfo)   
                 else: 
-                    countRecv += 1
-                    lqiList.append(lqi)
-                    rssiList.append(rssi)
-                    seqNumList.append(i)
-                    lastSeqNumOk = 0
 
-                    if not (0 <= i < nbPacket) or recvArray[otherIdx][i]!=0:
-                        raise ValueError("invalid packetIdx", i)
-                    recvArray[otherIdx][i] = 1
-                    lqiArray[otherIdx][i] = lqi
-                    rssiArray[otherIdx][i] = rssi
+                    if (not (0 <= i < nbPacket) 
+                        or recvArray[otherIdx][i]!=0
+                        or (lastSeqNum != None and i <= lastSeqNum)):
+                        print ("ignoring inconsistent seqNum",
+                               (lastSeqNum, i, nbPacket))
+                        pprint.pprint(recvInfo)
+                        #raise ValueError("invalid packetIdx", i)
+
+                    else:
+                        countRecv += 1
+                        lqiList.append(lqi)
+                        rssiList.append(rssi)
+                        seqNumList.append(i)
+                        lastSeqNumOk = 0
+
+                        lastSeqNum = i
+                        recvArray[otherIdx][i] = 1
+                        lqiArray[otherIdx][i] = lqi
+                        rssiArray[otherIdx][i] = rssi
+                        crcErrorArray[otherIdx] = countCrcError
+                        checksumErrorArray[otherIdx] = countChecksumError
+
+
+            #if countChecksumError > 0:
+            #    print (countChecksumError, countCrcError, countRecv)
 
             if recvInfo["id"] != xmitId and countRecv != 0:
                 #print (recvInfo["id"], xmitId, countRecv)
                 raise ValueError(
-                    "bad xmit id", (recvInfo[id], xmitId, recvInfo, countRecv))
+                    "bad xmit id", (recvInfo["id"], xmitId, recvInfo,countRecv))
 
             recvTable[otherIdx] = (countRecv,countCrcError,seqNumList,
                                    lqiList, rssiList, seqNumPreCrcErrorList)
@@ -210,7 +247,13 @@ class ExperimentParser(FileManager):
         del recvTable # not used
         #lqiArray = ma.masked_array(lqiArray, recvArray)
         #rssiArray = ma.masked_array(lqiArray, recvArray)
-        return np.array(edList), recvArray, lqiArray, rssiArray
+        return { "ed":np.array(edList), 
+                 "recv":recvArray,
+                 "lqi":lqiArray,
+                 "rssi":rssiArray,
+                 "crcError":crcErrorArray,
+                 "checksumError": checksumErrorArray }
+
 
     def parseEveryBurst(self):
         powerList = self.generalInfo["powerList"]
@@ -220,11 +263,14 @@ class ExperimentParser(FileManager):
         nbPacket = self.generalInfo["nbPacket"]
 
         dimRecv = (len(powerList), len(channelList), nbNode, nbNode, nbPacket)
+        dimStatRecv = (len(powerList), len(channelList), nbNode, nbNode)
         dimSend = (len(powerList), len(channelList), nbNode, nbPacket)
-        recvFullArray = np.zeros(dimRecv)
-        lqiFullArray = np.zeros(dimRecv)
-        rssiFullArray = np.zeros(dimRecv)
-        edFullArray = np.zeros(dimSend)
+        fullTable = { "recv": np.zeros(dimRecv),
+                      "lqi": np.zeros(dimRecv),
+                      "rssi": np.zeros(dimRecv),
+                      "ed": np.zeros(dimSend),
+                      "crcError": np.zeros(dimStatRecv),
+                      "checksumError": np.zeros(dimStatRecv) }
         
         resultTable = {}
         for powerIdx,power in enumerate(powerList):
@@ -232,25 +278,21 @@ class ExperimentParser(FileManager):
                 for idx in idxList:
                     fileName = ("exp-i%s-p%s-c%s.pydat" % (idx, power, channel))
                     if exp.exists(fileName):
-                        (edArray, recvArray, lqiArray, rssiArray 
-                         ) = exp.parseOneBurst(fileName, idx)
-                        recvFullArray[powerIdx,channelIdx,idx] = recvArray
-                        lqiFullArray[powerIdx,channelIdx,idx] = lqiArray
-                        rssiFullArray[powerIdx,channelIdx,idx] = rssiArray
-                        edFullArray[powerIdx,channelIdx,idx] = edArray
+                        oneTable = exp.parseOneBurst(fileName, idx)
+                        #assert set(oneTable.keys()) == set(fullTable.keys())
+                        for name in fullTable.keys():
+                            fullTable[name][powerIdx,channelIdx,idx] \
+                                = oneTable[name]
                     else: raise ValueError("missing file", fileName)
 
         #lqiFullArray = ma.masked_array(lqiFullArray, recvFullArray)
         #rssiFullArray = ma.masked_array(rssiFullArray, recvFullArray)
-        return {"recv": recvFullArray, "lqi": lqiFullArray,
-                "rssi": rssiFullArray, "ed": edFullArray }
+        return fullTable
 
     def parseToMatrix(self):
         summary = self.parseEveryBurst()
-        np.savez_compressed(exp.getPath("recv-array"), summary["recv"])
-        np.savez_compressed(exp.getPath("rssi-array"), summary["rssi"])
-        np.savez_compressed(exp.getPath("lqi-array"), summary["lqi"])
-        np.savez_compressed(exp.getPath("ed-array"), summary["ed"])
+        for name in summary.keys():
+            np.savez_compressed(exp.getPath(name+"-array"), summary[name])
 
     def readRecvMatrix(self):
         return numpyReadArray(self.getPath("recv-array.npz"))
@@ -267,6 +309,7 @@ class ExperimentParser(FileManager):
         idxList = self.generalInfo["idList"] # should be [0,1,2,3... n-1]
         channelList = self.generalInfo["channelList"]
         recvArray =  self.readRecvMatrix()
+        nbPacket = self.generalInfo["nbPacket"]
 
         print (time.time())
         xList = []
@@ -274,15 +317,30 @@ class ExperimentParser(FileManager):
         for powerIdx,power in enumerate(powerList):
             for channelIdx,channel in enumerate(channelList):
                 xList.append(channel)
-                yList.append(recvArray[powerIdx][channelIdx].sum())
+                count = recvArray[powerIdx][channelIdx].size
+                yList.append(recvArray[powerIdx][channelIdx].sum() 
+                             / float(count))
         plt.plot(xList,yList)
         plt.ylim(0)
+#        plt.show()
+        plt.clf()
 
         print (time.time())
 
-
-        #for power in powerList:
-        #    for :
+        # Histogram of loss rate of the links
+        successRateList = []
+        for powerIdx,power in enumerate(powerList):
+            for channelIdx,channel in enumerate(channelList):
+                for idx in idxList:
+                    for otherIdx in idxList:
+                        count= recvArray[powerIdx,channelIdx,idx,otherIdx].sum()
+                        if count > 0:
+                            successRateList.append(count / nbPacket)
+        successRateList.sort()
+        plt.plot(successRateList)
+        plt.show()
+        plt.clf()
+        print (time.time())
 
 #---------------------------------------------------------------------------
 
