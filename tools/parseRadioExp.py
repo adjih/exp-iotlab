@@ -38,6 +38,20 @@ J = os.path.join
 
 # This class needs to become 4 classes (Base,Zip,Tar,Union)
 
+def pseudoListDir(dirName, fileNameList):
+    while dirName.startswith("./"):
+        dirName = dirName[2:]
+    while len(dirName) >= 2 and dirName.endswith("/"):
+        dirName = dirName[:-1]
+    if dirName == ".":
+        dirName = ""
+    result = []
+    for fileName in fileNameList:
+        if os.path.dirname(fileName) == dirName:
+            result.append(os.path.basename(fileName))
+    return result
+        
+
 class TarFileManager:
     def __init__(self, archiveName):
         if archiveName.endswith(".lzma"):
@@ -53,42 +67,83 @@ class TarFileManager:
         else:
             decompressedFile = StringIO(readFile(archiveName))
 
-        self.tarFile = tarfile.open(self.dirName+".tar."+suffix, "r",
+        self.tarFile = tarfile.open(archiveName, "r", 
                                     fileobj = decompressedFile)
-        self.tarNameList = set(self.tarFile.getnames())
-        self.tarFile = []
+
+        self.initNameSet()
+
+    def initNameSet(self):
+        nameList = self.tarFile.getnames()
+        self.virtualDirName = (os.path.commonprefix(nameList))
+        if self.virtualDirName == "":
+            raise ValueError("No common directory for files in archive")
+        self.nameSet = set()
+        for name in nameList:
+            if name == self.virtualDirName:
+                continue
+            if not name.startswith(self.virtualDirName+"/"):
+                raise RuntimeError("internal error with common prefix",
+                                   (name, self.virtualDirName))
+            
+            self.nameSet.add(name[len(self.virtualDirName+"/"):])
+
+    def readFile(self, fileName):
+        f = self.tarFile.extractfile(J(self.virtualDirName, fileName))
+        result = f.read()
+        f.close()
+        return result
+
+    def listdir(self, subDirName):
+        # XXX: does not work for os.listDir("archive/subdir")
+        #  if there are files "archive/subdir/subsubdir/aaa"
+        if subDirName == "":
+            subDirName = "."
+        return sorted(pseudoListDir(subDirName, self.nameSet))
+
+    def exists(self, fileName):
+        return (fileName in self.nameSet)
+
+    def isdir(self, fileName):
+        return self.tarFile.getmember(J(self.virtualDirName,fileName)).isdir()
 
 
+class ZipFileManager:
+    def __init__(self, archiveName):
+        self.zipFile = zipfile.ZipFile(self.dirName+".zip", "r")
+        self.nameList = set(self.zipFile.namelist())
+
+    def readFile(self, fileName):
+        f = self.zipFile.open(fullPath)
+        result = f.read()
+        f.close()
+        return result
+
+    def listdir(self, subDirName):
+        return pseudoListDir
+
+
+def getArchiveFileManager(dirName):
+    TarSuffixList = [".tar.lzma", ".tar.lrz", ".tar"]    
+    for suffix in TarSuffixList:
+        if dirName.endswith(suffix):
+            return TarFileManager(dirName), dirName[:-len(suffix)]
+    for suffix in [".zip"]:
+        if dirName.endswith(suffix):
+            return ZipFileManager(dirName), dirName[:-len(suffix)]
+    return None, dirName
 
 class FileManager:
-    def __init__(self, dirName):
-        self.dirName = dirName
-        self.zipFile = None
+    def __init__(self, dirName, autoDetectArchive = True):
+        if autoDetectArchive:
+            (self.archiveFileManager, self.dirName 
+             ) = getArchiveFileManager(dirName)
+        else: self.archiveFileManager, self.dirName = None, dirName
+        self.linkTable = {}
 
-        if os.path.exists(self.dirName+".zip"):
-            self.zipFile = zipfile.ZipFile(self.dirName+".zip", "r")
-            self.zipNameList = set(self.zipFile.namelist())
-        else: self.zipFile = None
-
-        self.tarFile = None
-        # suffix = "gz" 
-        suffix = ".bz2"
-        if os.path.exists(self.dirName+".tar.lzma"):
-            cmd = ["lzma", "--decompress", "--stdout", self.dirName+".tar.lzma"]
-            syso ("(uncompressing %s)" % (self.dirName+".tar.lzma"))
-            data = subprocess.check_output(cmd) # must have 'lzma' program
-            decompressedFile = StringIO(data)
-            self.tarFile = tarfile.open(self.dirName+".tar."+suffix, "r",
-                                        fileobj = decompressedFile)
-            self.tarNameList = set(self.tarFile.getnames())
-        elif os.path.exists(self.dirName+".tar."+suffix):
-            # NOTE: tar+bzip2|gzip file, slow as molasses (probably decodes
-            # everything before, for each extraction)
-            self.tarFile = tarfile.open(self.dirName+".tar."+suffix, 
-                                        "r:"+suffix)
-            self.tarNameList = set(self.tarFile.getnames())
-        else: self.tarFile = None
-
+    def updateLinkTableFrom(self, fileName):
+        moreLinkTable = eval(self.readFile(fileName))
+        self.linkTable.update(moreLinkTable)
+    
     def writeFile(self, fileName, data):
         self.ensureDir()
         writeFile(J(self.dirName, fileName), data)
@@ -98,28 +153,42 @@ class FileManager:
             os.mkdir(self.dirName)
 
     def readFile(self, fileName):
+        if fileName in self.linkTable:
+            fileName = self.linkTable[fileName]
         fullPath = J(self.dirName, fileName)
-        if not os.path.exists(fullPath):
-            if self.zipFile != None:
-                f = self.zipFile.open(fullPath)
-                result = f.read()
-                f.close()
-                return result
-            elif self.tarFile != None:
-                f = self.tarFile.extractfile(fullPath)
-                result = f.read()
-                f.close()
-                return result
+        if not os.path.exists(fullPath) and self.archiveFileManager != None:
+            return self.archiveFileManager.readFile(fileName)
         return readFile(fullPath)
 
     def getPath(self, fileName):
+        if fileName in self.linkTable:
+            fileName = self.linkTable[fileName]
         return J(self.dirName, fileName)
 
     def exists(self, fileName):
+        if fileName in self.linkTable:
+            fileName = self.linkTable[fileName]
         fullPath = J(self.dirName, fileName)
         return (os.path.exists(fullPath) 
-                or (self.zipFile != None and fullPath in self.zipNameList)
-                or (self.tarFile != None and fullPath in self.tarNameList))
+                or (self.archiveFileManager != None 
+                    and self.archiveFileManager.exists(fileName)))
+
+    def listdir(self, subDirName):
+        # XXX: should raise an exception on absent dir
+        if os.path.exists(J(self.dirName, subDirName)):
+            result = os.listdir(J(self.dirName, subDirName))
+        else: result = []
+        if self.archiveFileManager != None:
+            result += self.archiveFileManager.listdir(subDirName)
+        return result
+
+    #def isdir(self, fileName):
+    #    # XXX: should raise an error on absent fileName
+    #    if os.path.exists(J(self.dirName, fileName)):
+    #        result = os.path.isdir(J(self.dirName, fileName))
+    #    if self.archiveFileManager != None:
+    #        return self.archiveFileManager.isdir(fileName)
+    #    else: XXX
 
 #---------------------------------------------------------------------------
 # Merging subdirectories in one file
@@ -204,7 +273,7 @@ def tryMergeMultipleExpMetaInfo(expMetaInfoList):
         return None
 
 
-def finishMergeDirWithLink(fileManager, dirName, mergedExpMeta):
+def ___finishMergeDirWithLink(fileManager, dirName, mergedExpMeta):
     fileManager.writeFile("meta.pydat", repr(mergedExpMeta))
     for subDirName in mergedExpMeta[MergedKeyPrefix+"subDirName"]:
         subDirPath = fileManager.getPath(subDirName)
@@ -224,7 +293,49 @@ def finishMergeDirWithLink(fileManager, dirName, mergedExpMeta):
                         raise ValueError("inconsistent file content in merge", 
                                          (oldPath, newPath))
 
-def finishMergeDirWithZip(dirName, mergedExpMeta):
+
+def finishMergeDirWithVirtualLink(fileManager, dirName, mergedExpMeta):
+    archiveFileManager = fileManager.archiveFileManager
+    fileManager.writeFile("meta.pydat", repr(mergedExpMeta))
+    realPathOf = { J(dirName, "meta.pydat"): "(generated)" }
+    copiedSet = set()
+
+    def copyFile(archiveFileName, fileName):
+        print ("(copy: %s -> %s)" % (archiveFileName, fileName))
+        copiedSet.add(fileName)
+        content = archiveFileManager.readFile(archiveFileName)
+        fileManager.writeFile(fileName, content)
+
+    for fileName in archiveFileManager.listdir("."):
+        if not archiveFileManager.isdir(fileName):
+            copyFile(fileName, fileName)
+
+    for subDirName in mergedExpMeta[MergedKeyPrefix+"subDirName"]:
+        for fileName in archiveFileManager.listdir(subDirName):
+            if os.path.basename(fileName) == "meta.pydat":
+                continue
+            linkOldPath = J(subDirName, fileName)
+            oldPath = J(subDirName, fileName)
+            newPath = fileName
+            if newPath not in realPathOf:
+                realPathOf[newPath] = oldPath
+                syso("+")
+            else:
+                old = fileManager.readFile(oldPath)
+                new = fileManager.readFile(realPathOf[newPath])
+                syso(".")
+                if old != new:
+                    raise ValueError("inconsistent file content in merge", 
+                                     (oldPath, realPathOf[newPath]))
+                if fileName not in copiedSet:
+                    copyFile(oldPath, fileName)
+                
+                
+    del realPathOf[J(dirName, "meta.pydat")]
+    fileManager.writeFile("virtual-link.pydat", repr(realPathOf))
+
+
+def ___finishMergeDirWithZip(dirName, mergedExpMeta):
     zipName = dirName + ".zip"
     if os.path.exists(zipName):
         raise RuntimeError("archived file already exists", zipName)
@@ -265,17 +376,18 @@ def attemptMergeDir(dirName):
     fileManager = FileManager(dirName)
 
     expMetaInfoList = []
-    for subDirName in sorted(os.listdir(dirName)):
-        otherManager = FileManager(J(dirName, subDirName))
-        if not otherManager.exists("meta.pydat"):
+    for subDirName in sorted(fileManager.listdir("")):
+        metaFilePath = J(subDirName,"meta.pydat")
+        if not fileManager.exists(metaFilePath):
             continue
-        if not otherManager.exists("success.pydat"):
+        successFilePath = J(subDirName,"success.pydat")
+        if not fileManager.exists(successFilePath):
             continue
-        success = eval(otherManager.readFile("success.pydat"))
+        success = eval(fileManager.readFile(successFilePath))
         if not success:
             continue
 
-        expMetaInfo = eval(otherManager.readFile("meta.pydat"))
+        expMetaInfo = eval(fileManager.readFile(metaFilePath))
         expMetaInfo[MergedKeyPrefix+"subDirName"] = [subDirName]
         expMetaInfoList.append(expMetaInfo)
 
@@ -286,9 +398,11 @@ def attemptMergeDir(dirName):
     mergedExpMeta["mergeInfo"] = sys.argv
 
     #finishMergeDirWithLink(fileManager, dirName, mergedExpMeta)
-    finishMergeDirWithZip(dirName, mergedExpMeta)
+    #finishMergeDirWithZip(dirName, mergedExpMeta)
+    finishMergeDirWithVirtualLink(fileManager, dirName, mergedExpMeta)
 
     if args.archive:
+        raise RuntimeError("this is obsolete, compress with lrzip/lzma first")
         print ("archiving in tar")
         subprocess.check_call(["tar", "cf", dirName+".tar", dirName])
         shutil.rmtree(dirName)
@@ -321,6 +435,7 @@ class ExperimentParser(FileManager):
     def __init__(self, dirName):
         self.dirName = dirName
         FileManager.__init__(self, self.dirName)
+        self.updateLinkTableFrom("virtual-link.pydat")
         self.generalInfo = eval(self.readFile("meta.pydat"))
 
     def parseOneBurst(self, fileName, idx):
@@ -533,7 +648,7 @@ class ExperimentAnalysis(FileManager):
 
     def __init__(self, dirName):
         self.dirName = dirName
-        FileManager.__init__(self, self.dirName)
+        FileManager.__init__(self, self.dirName, False)
 
         self.generalInfo = eval(self.readFile("meta.pydat"))
         self.nbNode = len(self.generalInfo["idList"])
@@ -743,3 +858,30 @@ elif args.command == "pos":
     
 
 #---------------------------------------------------------------------------
+
+def notUsed():
+        # XXX: this part is removed
+        if os.path.exists(self.dirName+".zip"):
+            self.zipFile = zipfile.ZipFile(self.dirName+".zip", "r")
+            self.zipNameList = set(self.zipFile.namelist())
+        else: self.zipFile = None
+
+        self.tarFile = None
+        # suffix = "gz" 
+        suffix = ".bz2"
+        if os.path.exists(self.dirName+".tar.lzma"):
+            cmd = ["lzma", "--decompress", "--stdout", self.dirName+".tar.lzma"]
+            syso ("(uncompressing %s)" % (self.dirName+".tar.lzma"))
+            data = subprocess.check_output(cmd) # must have 'lzma' program
+            decompressedFile = StringIO(data)
+            self.tarFile = tarfile.open(self.dirName+".tar."+suffix, "r",
+                                        fileobj = decompressedFile)
+            self.tarNameList = set(self.tarFile.getnames())
+        elif os.path.exists(self.dirName+".tar."+suffix):
+            # NOTE: tar+bzip2|gzip file, slow as molasses (probably decodes
+            # everything before, for each extraction)
+            self.tarFile = tarfile.open(self.dirName+".tar."+suffix, 
+                                        "r:"+suffix)
+            self.tarNameList = set(self.tarFile.getnames())
+        else: self.tarFile = None
+
