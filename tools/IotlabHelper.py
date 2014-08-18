@@ -648,12 +648,15 @@ def parserAddTypicalArgs(parser, defaultName):
                         default="contiki")
     parser.add_argument("--nb-protocol-nodes", type=int, default=0)
 
-def ensureExperimentFromArgs(args):
+def ensureExperimentFromArgs(args, autoStart = True):
     iotlab = IotlabHelper(args.dev)
     expList = iotlab.getExpList()
     if len(expList) == 0:
-        print ("- No experience, starting one")
-        exp = iotlab.startExp(args.name, args.duration, args.site, args.nbNodes)
+        if autoStart:
+            print ("- No experience, starting one")
+            exp = iotlab.startExp(args.name, args.duration, 
+                                  args.site, args.nbNodes)
+        else: raise RuntimeError("no running experiment")
     else:
         print ("- Re-using already running experiment")
         exp = expList[0]

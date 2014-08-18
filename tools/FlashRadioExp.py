@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser(
 IotlabHelper.parserAddTypicalArgs(parser, "rest_radio_test")
 args = parser.parse_args()
 
-iotlabHelper, exp = IotlabHelper.ensureExperimentFromArgs(args)
+iotlabHelper, exp = IotlabHelper.ensureExperimentFromArgs(args, autoStart=False)
 exp.makeLastSymLink() # XXX: cannot run multiple simultaneous exp. with this
 
 #---------------------------------------------------------------------------
