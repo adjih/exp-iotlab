@@ -15,7 +15,7 @@ import numpy.ma as ma
 import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
-
+from mpl_toolkits.mplot3d import Axes3D
 
 #---------------------------------------------------------------------------
 # copied from IotlabHelper (and wrote equivalent zillion times)
@@ -36,8 +36,6 @@ def syso(msg): # name comes from Eclipse+Java
 
 J = os.path.join
 
-# This class needs to become 4 classes (Base,Zip,Tar,Union)
-
 def pseudoListDir(dirName, fileNameList):
     while dirName.startswith("./"):
         dirName = dirName[2:]
@@ -54,18 +52,25 @@ def pseudoListDir(dirName, fileNameList):
 
 class TarFileManager:
     def __init__(self, archiveName):
-        if archiveName.endswith(".lzma"):
-            cmd = ["lzma", "--decompress", "--stdout", archiveName]
-            syso ("(uncompressing %s [lzma])" % archiveName)
-            data = subprocess.check_output(cmd) # must have 'lzma' program
+        uncompressCmdTable = {".lzma": "lzma", ".gz": "gzip", 
+                              ".bz2": "bzip2", ".xz": "xz"}
+        uncompressCmd = None
+        for suffix,cmd in uncompressCmdTable.iteritems():
+            if archiveName.endswith(suffix):
+                uncompressCmd = cmd
+        if uncompressCmd != None:
+            cmd = [uncompressCmd, "--decompress", "--stdout", archiveName]
+            syso ("(uncompressing %s [%s]" % (archiveName, uncompressCmd))
+            data = subprocess.check_output(cmd) # must have proper program
             decompressedFile = StringIO(data)
         elif archiveName.endswith(".lrz"):
             cmd = ["lrzip", "-d", "-o", "-", archiveName]
             syso ("(uncompressing %s [lrzip])" % archiveName)
-            data = subprocess.check_output(cmd) # must have 'lzma' program
+            data = subprocess.check_output(cmd) # must have lrzip program
             decompressedFile = StringIO(data)
-        else:
-            decompressedFile = StringIO(readFile(archiveName))
+
+        else: decompressedFile = None
+        #decompressedFile = StringIO(readFile(archiveName))
 
         self.tarFile = tarfile.open(archiveName, "r", 
                                     fileobj = decompressedFile)
@@ -106,7 +111,7 @@ class TarFileManager:
     def isdir(self, fileName):
         return self.tarFile.getmember(J(self.virtualDirName,fileName)).isdir()
 
-
+# XXX: no longer supported
 class ZipFileManager:
     def __init__(self, archiveName):
         self.zipFile = zipfile.ZipFile(self.dirName+".zip", "r")
@@ -131,6 +136,10 @@ def getArchiveFileManager(dirName):
         if dirName.endswith(suffix):
             return ZipFileManager(dirName), dirName[:-len(suffix)]
     return None, dirName
+
+# This implements either a file manager for a directory
+# or a kind of minimal 'unionfs' of a read-only archive 
+# with an overlay directory (for read and writes)
 
 class FileManager:
     def __init__(self, dirName, autoDetectArchive = True):
@@ -415,6 +424,23 @@ def attemptMergeDir(dirName):
 
 #---------------------------------------------------------------------------
 
+#      (power, channel, sender, burst, receiver)
+#       0      1        2       3      4
+
+AxisNameList = ["power", "channel", "sender", "burst", "receiver"]
+
+def getAxis(nameList):
+    assert set(nameList).issubset(set(AxisNameList))
+    return tuple(sorted([name.index(nameList) for name in nameList]))
+
+def getAxisWithout(nameList, noReceiver=False):
+    assert set(nameList).issubset(set(AxisNameList))
+    return tuple([i for i,name in enumerate(AxisNameList)
+                  if (name not in nameList
+                      and (name != "receiver" or not noReceiver))])
+
+#---------------------------------------------------------------------------
+
 SeqNumOffsetError = 0xff00
 SeqNumCrcError = SeqNumOffsetError+ord('C')
 SeqNumLengthError = SeqNumOffsetError+ord('L')
@@ -427,8 +453,8 @@ ReprOfSeqNumError = {
     SeqNumCrc32Error: "user-crc32"
     }
 
-ErrorNameList = (ReprOfSeqNumError.values() 
-                 + ["bad-seq-num", "invalid-handle-irq"])
+ErrorNameList = ( ReprOfSeqNumError.values() 
+ + ["bad-seq-num", "invalid-handle-irq", "outside-burst", "generic", "magic2"] )
 
 class ExperimentParser(FileManager):
 
@@ -522,7 +548,11 @@ class ExperimentParser(FileManager):
                 continue
             recvInfo = eval(showStr)
             if recvInfo["nbChange"] >= 1:
-                print ("\nmultiple changes of xmitId", recvInfo)
+                raise ValueError ("\nmultiple changes of xmitId", recvInfo)
+            errorCountArrayTable["outside-burst"][otherIdx] += \
+                recvInfo["nbLockedError"]
+            errorCountArrayTable["generic"][otherIdx] += recvInfo["nbError"]
+            errorCountArrayTable["magic2"][otherIdx] += recvInfo["nbMagicError"]
                         
             errorLogTable = dict([ (errorName, []) 
                                    for errorName in ErrorNameList])
@@ -538,22 +568,23 @@ class ExperimentParser(FileManager):
                 #elif packetInfo[0] == 0xfffe:
                 #    errorLogTable["magic"].append(lastSeqNum)
 
-                # New-style errors
+
                 if seqNum >= SeqNumOffsetError:
+                    # New-style errors
                     assert seqNum in ReprOfSeqNumError
                     errorType = ReprOfSeqNumError[seqNum]
                     errorLogTable[errorType].append(lastSeqNum)
                     # NOTE: information about timing is not copied
 
-                # Well received packet
                 else: 
-
+                    # Well received packet
                     if (not (0 <= seqNum < nbPacket) 
                         or recvArray[otherIdx][seqNum]!=0
                         or (lastSeqNum != None and seqNum <= lastSeqNum)):
                         print ("ignoring inconsistent seqNum",
                                (lastSeqNum, seqNum, nbPacket))
                         pprint.pprint(recvInfo)
+                        errorLogTable["bad-seq-num"].append(seqNum)
                         #raise ValueError("invalid packetIdx", i)
 
                     else:
@@ -563,7 +594,8 @@ class ExperimentParser(FileManager):
                         rssiArray[otherIdx][i] = rssi
 
             for errorName in ErrorNameList:
-                if errorName == "invalid-handle-irq":
+                if errorName in ["invalid-handle-irq", "generic",
+                                 "magic2", "outside-burst"]:
                     continue
                 errorCountArrayTable[errorName][otherIdx] = len(
                     errorLogTable[errorName])
@@ -644,6 +676,8 @@ class ExperimentParser(FileManager):
 
 #---------------------------------------------------------------------------
 
+# structurally, this is a mess:
+
 class ExperimentAnalysis(FileManager):
 
     def __init__(self, dirName):
@@ -657,8 +691,24 @@ class ExperimentAnalysis(FileManager):
         self.powerList = self.generalInfo["powerList"]
         self.stat = np.load(self.getPath("stat.npz"))
         self.error =  np.load(self.getPath("error.npz"))
+        self.nodePosTable = self._readNodePos()
+        self._cache = {}
 
-    def readNodePos(self):
+    def getNodePosTable(self):
+        return self.nodePosTable
+
+    def getCached(self, name):
+        if name in self._cache:
+            return self._cache[name]
+        if name in self.stat:
+            self._cache[name] = self.stat[name].copy()
+            return self._cache[name]
+        if name in self.error:
+            self._cache[name] = self.error[name].copy()
+            return self._cache[name]
+        raise ValueError("Unknown data name", name)
+
+    def _readNodePos(self): 
         resourceList = eval(self.readFile("resources.pydat"))["items"]
 
         infoOfAddress = {}
@@ -671,6 +721,12 @@ class ExperimentAnalysis(FileManager):
             posTable[i] = tuple([float(moreInfo[u]) for u in ["x","y","z"]])
 
         return posTable
+
+    def getIdxClosest(self, x,y,z=None):
+        dAndI = [ ((x-xx)**2 + (y-yy)**2 + (0 if z==None else (z-zz))**2, i)
+                  for i,(xx,yy,zz) in enumerate(self.nodePosTable.itervalues())]
+        dAndI.sort()
+        return dAndI[0][1], math.sqrt(dAndI[0][0])
 
     def summary(self):
         print ("--- Parameters")
@@ -698,9 +754,7 @@ class ExperimentAnalysis(FileManager):
         for ip,power in enumerate(self.powerList):
             for ic,channel in enumerate(self.channelList):
                 s = ""
-                #if len(self.powerList) >= 2:
                 s += "%s dBm " % power
-                #if len(self.channelList) >= 2:
                 s += "ch%s " % channel
                 partStatRecv = statRecv[ip,ic]
                 print (s+"- rcv:", int(partStatRecv.sum()), end=" - ")
@@ -708,8 +762,99 @@ class ExperimentAnalysis(FileManager):
                 print ("magic=% 5d"%self.error["magic"][ip,ic].sum(), end=" - ")
                 print ("radio-crc=%s" % self.error["radio-crc"][ip,ic].sum())
 
+
+    def getStatData(self, powerIdx, channelIdx, refIdx, name):
+        if name == "lqi" or name == "rssi":
+            recvArray = self.getCached("recv")
+            dataRawArray = self.getCached(name)
+            dataArray = np.ma.masked_array(dataRawArray, 
+                                          mask=np.logical_not(recvArray))
+            data = (dataArray[powerIdx,channelIdx,refIdx].mean(axis=1))
+
+        elif name == "recv":
+            recvArray = self.getCached("recv")
+            data = recvArray[powerIdx,channelIdx,refIdx]
+            data = data.sum(axis=1) / self.nbPacket
+
+        elif name == "ed":
+            data = self.getCached("ed")
+            data = data[powerIdx, channelIdx].mean(axis=1)
+
+        elif name in ErrorNameList:
+            data = self.getCached(name)
+            data = data[powerIdx, channelIdx].sum(axis=0)
+
+        return data
+
+
+    def getEdOnChannel(self, channel):
+        #dimRecv = (len(powerList), len(channelList), nbNode, nbNode, nbPacket)
+        #dimStatRecv = (len(powerList), len(channelList), nbNode, nbNode)
+        #dimSend = (len(powerList), len(channelList), nbNode, nbPacket)
+
+        powerIdx = 0
+        #channelIdx = 22-11
+        channelIdx = 11-11
+        refIdx = 100
+
+        mode = "ed"
+
+        if mode == "lqi":
+
+            recvArray = self.stat["recv"]
+            lqiArray = np.ma.masked_array(self.stat["lqi"], 
+                                          mask=np.logical_not(recvArray))
+            data = (lqiArray[powerIdx,channelIdx,refIdx].mean(axis=1))
+        elif mode == "recv":
+            data = self.stat["recv"][powerIdx,channelIdx,refIdx]
+            data = data.sum(axis=1) / self.nbPacket
+
+        elif mode == "ed":
+            data = self.stat["ed"][powerIdx, channelIdx].mean(axis=1)
+
+        elif mode in ErrorNameList:
+            data = self.error[mode][powerIdx, channelIdx].sum(axis=0)
+
+        minData = data.min()
+        maxData = data.max()
+        print (minData)
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        for i,(x,y,z) in self.nodePosTable.iteritems():
+            if data[i] is np.ma.masked or data[i] <= minData *1.0001:
+                zs = [minData - (maxData-minData)*0.01, minData]
+                #continue
+            else: zs = [minData, data[i]]
+            ax.plot([x,x], [y,y], zs)
+        plt.show()
+
+        e
+
+        axis = getAxisWithout(["channel", "sender"], noReceiver=True)
+        print (axis)
+        statEd = self.stat["ed"]
+        statEd = self.error["radio-crc"]
+        statEd = self.error["magic"]
+        statEd = self.stat["recv"][:,:,:,:,0]
+        avgEd = (statEd.mean(axis=axis))
+
+        idx = 22-11
+        idx = 11-11
+
+        minAvgEd = avgEd.min()
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        for i,(x,y,z) in self.nodePosTable.iteritems():
+            ax.plot([x,x], [y,y], [minAvgEd, avgEd[idx][i]])
+        plt.show()
+            
+        plt.plot(avgEd[22-11])
+        plt.plot(avgEd[11-11])
+        plt.show()
+        
+
     def plotPos(self):
-        posTable = self.readNodePos()
+        posTable = self.nodePosTable
         xList = []
         yList = []
         for x,y,z in posTable.values():
@@ -761,7 +906,7 @@ class ExperimentAnalysis(FileManager):
 class ExperimentModel(ExperimentAnalysis): # implementation re-use
     def __init__(self, dirName):
         ExperimentAnalysis.__init__(self, dirName)
-        self.posTable = self.readNodePos()
+        self.posTable = self.nodePosTable # XXX
 
     def getClosest(self, x,y,z=None):
         dAndI = [ ((x-xx)**2 + (y-yy)**2 + (0 if z==None else (z-zz))**2, i)
@@ -801,6 +946,295 @@ class ExperimentControllerView:
         plt.draw()
 
 #---------------------------------------------------------------------------
+# GUI
+#---------------------------------------------------------------------------
+
+# http://matplotlib.org/examples/user_interfaces/embedding_in_tk.html
+# http://stackoverflow.com/questions/4073660/python-tkinter-embed-matplotlib-in-gui
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+from matplotlib.figure import Figure
+from Tkinter import *
+
+class FigView:
+    def __init__(self, master, x,y, plotFunction):
+        self.plotFunction = plotFunction
+        #self.figure = plt.figure()
+        self.figure = Figure(figsize=(5,4), dpi=100)
+        self.axe = self.figure.add_subplot(111, projection="3d")
+        self._redraw()
+        self.canvas = FigureCanvasTkAgg(self.figure, master=master)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().grid(row=y,column=x) #,sticky=N+S+E+W)
+
+    def _redraw(self):
+        self.axe.cla()
+        self.plotFunction(self.axe)
+
+#--------------------------------------------------
+
+def plotFunc1(a):
+    t = arange(0.0,3.0,0.01)
+    s = sin(2*pi*t)
+    a.plot(t,s)
+
+def plotFunc2(a):
+    t = arange(0.0,3.0,0.01)
+    s = sin(2*pi*t)
+    a.plot(t,-s)
+
+def plotFunc3(a):
+    a.plot(range(10),range(10))
+
+#--------------------------------------------------
+
+ModeList = ["rssi", "recv", "lqi", "ed"] + ErrorNameList
+
+class ExperimentFrame(Frame):
+    def __init__(self, app, parentFrame, dirName, isFirst):
+        Frame.__init__(self, parentFrame)
+        self.pack({"side":"left"})
+
+        self.app = app
+        self.parentFrame = parentFrame
+        self.dirName = dirName
+        self.exp = ExperimentAnalysis(dirName) # serves as a "model"
+        self.param = {
+            "expIdx":0, 
+            "powerIdx":0, 
+            "channelIdx":0, 
+            "nodeIdx":0, 
+            "withNodeIdx":0,
+            "modeIdx":0
+            }
+        self.otherParam = {}
+        if not isFirst:
+            for name in self.param:
+                #if name != "withNodeIdx":
+                self.param[name] = None
+
+        self.paramFrameTable = {}
+        for (name, idxName, valueList) in [
+            #("exp", "expIdx", )
+            ("power", "powerIdx", self.exp.powerList),
+            ("channel", "channelIdx", self.exp.channelList),
+            ("mode", "modeIdx", ModeList),
+            ("node", "withNodeIdx", ["(here)"])
+            ]:
+            self.createParamFrame(name, idxName, valueList)
+        self.createFigure()
+        
+
+    def createParamFrame(self, name, nameIdx, valueList):
+        pos = [0,0][:]
+        def getPos():
+            result = tuple(pos[:])
+            pos[0] += 1
+            if pos[0] >= 9 or (name == "mode" and pos[0] >=4):
+                pos[0] = 0
+                pos[1] += 1
+            return {"row":result[1], "column":result[0]}
+
+        frame = Frame(self, relief="groove",border=3)
+        label = Label(frame, text=name, relief="raised")
+        label.grid(getPos())
+        def makeParamCallback(name, nameIdx, value):
+            def func():
+                self.param[nameIdx] = value
+                self.setParam(nameIdx, value)
+            return func
+
+        indexVar = IntVar()
+        if self.param.get(nameIdx) == None:
+            indexVar.set(-1)
+        buttonOther = Radiobutton(
+            frame, text="(other)", variable=indexVar, value = -1,
+            command=makeParamCallback(name, nameIdx, None))
+        buttonOther.grid(getPos())
+        self.paramFrameTable[name] = {
+            "frame": frame,
+            "label": label,
+            "indexVar": indexVar,
+            "<other>": buttonOther
+            }
+        for i,value in enumerate(valueList):
+            text = "%s" % value
+            button = Radiobutton(
+                frame, text=text, variable=indexVar, value = i,
+                command = makeParamCallback(name, nameIdx, i))
+            button.grid(getPos())
+        frame.pack()
+        
+
+    def createFigure(self):
+        self.frameResult = Frame(self)
+        self.frameResult.pack({"side":"bottom"})
+        self.figure = Figure(figsize=(5,4), dpi=100)
+        # canvas before axe: http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg15322.html
+        self.canvas = FigureCanvasTkAgg(self.figure, master=self.frameResult)
+        self.canvas.draw()
+        self.axe = self.figure.add_subplot(111, projection="3d")
+        self._redraw()
+        self.canvas.get_tk_widget().pack({"side":"bottom"})
+
+        self.frameNode = Frame(self)
+        self.frameNode.pack({"side":"bottom"})
+        self.figureNode = Figure(figsize=(5,4), dpi=100)
+        self.canvasNode = FigureCanvasTkAgg(
+            self.figureNode, master=self.frameNode)
+        self.canvasNode.draw()
+        self.axeNode = self.figureNode.add_subplot(111)
+        self._drawNode()
+        self.canvasNode.get_tk_widget().pack({"side":"bottom"})
+
+    def getParamIdx(self, name):
+        result = self.param[name]
+        if result == None:
+            result = self.otherParam.get(name, None)
+        if result == None:
+            result = 0
+        return result
+
+    def _redraw(self):
+        self.axe.cla()
+        powerIdx = 0
+        channelIdx = 0
+        nodeIdx = 0
+        mode = ModeList[self.getParamIdx("modeIdx")]
+        if self.param["withNodeIdx"] == 0:
+            nodeIdx = self.param["nodeIdx"]
+        else: nodeIdx = self.otherParam.get("nodeIdx", 0)
+        print ("REDRAW", self.param, mode, nodeIdx)
+        print (            self.getParamIdx("powerIdx"), 
+            self.getParamIdx("channelIdx"), 
+            nodeIdx, 
+            mode)
+        data = self.exp.getStatData(
+            self.getParamIdx("powerIdx"), 
+            self.getParamIdx("channelIdx"), 
+            nodeIdx, 
+            mode)
+
+        minData = data.min()
+        maxData = data.max()
+        for i,(x,y,z) in self.exp.getNodePosTable().iteritems():
+            if data[i] is np.ma.masked or data[i] <= minData *1.0001:
+                zs = [minData - (maxData-minData)*0.01, minData]
+                #continue
+            else: zs = [minData, data[i]]
+            self.axe.plot([x,x], [y,y], zs)
+        self.canvas.draw()
+
+
+    def _drawNode(self):
+        xList = []
+        yList = []
+        for x,y,z in self.exp.getNodePosTable().itervalues():
+            xList.append(x)
+            yList.append(y)
+        self.axeNode.plot(xList,yList,".k")
+        cid = self.figureNode.canvas.mpl_connect(
+            "button_release_event", self.eventClick)
+
+
+    def eventClick(self, event):
+        if event.inaxes == None:
+            return
+        #print (event)
+        nodeIdx, distance = (self.exp.getIdxClosest(event.xdata,event.ydata))
+        self.setParam("nodeIdx", nodeIdx)
+        return
+        
+        #self.ax2 = self.fig.add_subplot(222)
+        (x,y,z) = self.model.posTable[nodeIdx]
+        print(self.ax.plot([x],[y], "o"))
+
+        plt.draw()
+
+
+    def setParam(self, paramName, value):
+        self.param[paramName] = value
+        self._redraw()
+        self.app.eventSetParam(self, paramName, value)
+
+    def eventOtherSetParam(self, paramName, value):
+        #assert value != None
+        print (self.param)
+        self.otherParam[paramName] = value
+        if (self.param[paramName] == None 
+            or (paramName == "nodeIdx"
+                and self.param["withNodeIdx"] == None)):
+            self._redraw()
+
+
+class ExperimentApplication(Frame):
+
+    def __init__(self, args, master=None):
+        self.args = args
+        Frame.__init__(self, master)
+        self.pack()
+
+        self.expFrameList = []
+        for i,dirName in enumerate(args.dirNameList):
+            expFrame = ExperimentFrame(self, self, dirName, i==0)
+            self.expFrameList.append(expFrame)
+
+    def eventSetParam(self, expFrame, paramName, value):
+        for otherExpFrame in self.expFrameList:
+            if otherExpFrame is not expFrame:
+                otherExpFrame.eventOtherSetParam(paramName, value)
+
+#---------------------------------------------------------------------------
+
+from numpy import arange, sin, pi
+
+def old__runGui(args):
+    master = Tk()
+    master.title("Radio Experience")
+    
+    plotFuncList = [plotFunc1, plotFunc2, plotFunc3]
+    figList = [FigView(master, i+1,1, plotFuncList[i]) for i in range(3)]
+
+    if False:
+        toolbar1Frame = Frame(master)
+        toolbar1Frame.grid(row=2,column=1,sticky=N+S+E+W)
+        toolbar1 = NavigationToolbar2TkAgg(figList[0].canvas, toolbar1Frame)
+        toolbar1.update()
+        toolbar1.grid(row=2,column=1)
+
+    #ax = fig.add_subplot(111, projection='3d')
+    
+    #figList[0].figure.canvas.mpl_connect('key_press_event', on_key_event)
+    for i in range(2):
+        #figList[i].figure.canvas.mpl_connect('button_press_event', on_key_event)
+        def on_key_event(event):
+            print('[%d] you pressed %s'% (i,event.key))
+            key_press_handler(event, dataPlot1, toolbar1)
+
+        def onclick(event):
+            print (list(event.__dict__.iteritems()))
+            print ('[%s] button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(i,
+                event.button, event.x, event.y, event.xdata, event.ydata))
+
+        #figList[i].figure.canvas.mpl_connect('key_press_event', on_key_event)
+        figList[i].figure.canvas.mpl_connect('button_press_event', onclick)
+    #figList[0].k = on_key_event
+    #figList[0].axe.mpl_connect('key_press_event', on_key_event)
+    print ("yow")
+
+    master.mainloop()
+
+#--------------------------------------------------
+
+def runGui(args):
+    root = Tk()
+    root.title("Radio Experience")
+    app = ExperimentApplication(args, root)
+    app.mainloop()
+    #root.destroy()
+    sys.exit(0)
+
+#---------------------------------------------------------------------------
 
 # XXX:remove
 #PowerList = [
@@ -823,6 +1257,12 @@ mergeParser.add_argument("--archive", action="store_true", default=False)
 
 posParser = subparsers.add_parser("pos")
 posParser.add_argument("dirName", type=str)
+
+testParser = subparsers.add_parser("test")
+testParser.add_argument("dirName", type=str)
+
+guiParser = subparsers.add_parser("gui")
+guiParser.add_argument("dirNameList", nargs='+', type=str)
 
 args = parser.parse_args()
 
@@ -850,38 +1290,17 @@ elif args.command == "summary":
     analysis = ExperimentAnalysis(args.dirName)
     analysis.summary()
 
+elif args.command == "test":
+    analysis = ExperimentAnalysis(args.dirName)
+    analysis.getEdOnChannel(22)
+
 elif args.command == "pos":
     #analysis = ExperimentAnalysis(args.dirName)
     #analysis.plotPos()
-    model = ExperimentModel(args.dirName)
+    model = ExperimentModel(args.dirNameList)
     gui = ExperimentControllerView(model)
-    
+
+elif args.command == "gui":
+    runGui(args)
 
 #---------------------------------------------------------------------------
-
-def notUsed():
-        # XXX: this part is removed
-        if os.path.exists(self.dirName+".zip"):
-            self.zipFile = zipfile.ZipFile(self.dirName+".zip", "r")
-            self.zipNameList = set(self.zipFile.namelist())
-        else: self.zipFile = None
-
-        self.tarFile = None
-        # suffix = "gz" 
-        suffix = ".bz2"
-        if os.path.exists(self.dirName+".tar.lzma"):
-            cmd = ["lzma", "--decompress", "--stdout", self.dirName+".tar.lzma"]
-            syso ("(uncompressing %s)" % (self.dirName+".tar.lzma"))
-            data = subprocess.check_output(cmd) # must have 'lzma' program
-            decompressedFile = StringIO(data)
-            self.tarFile = tarfile.open(self.dirName+".tar."+suffix, "r",
-                                        fileobj = decompressedFile)
-            self.tarNameList = set(self.tarFile.getnames())
-        elif os.path.exists(self.dirName+".tar."+suffix):
-            # NOTE: tar+bzip2|gzip file, slow as molasses (probably decodes
-            # everything before, for each extraction)
-            self.tarFile = tarfile.open(self.dirName+".tar."+suffix, 
-                                        "r:"+suffix)
-            self.tarNameList = set(self.tarFile.getnames())
-        else: self.tarFile = None
-
