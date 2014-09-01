@@ -1,11 +1,14 @@
 #---------------------------------------------------------------------------
-# Cedric Adjih
+# Cedric Adjih - Inria - 2014
 #---------------------------------------------------------------------------
 
 from __future__ import print_function, division, unicode_literals
 
 import argparse, pprint, math
-from cStringIO import StringIO
+
+try: from cStringIO import StringIO
+except: from io import BytesIO as StringIO # in this case: assume python 3
+
 import sys, json, os, time, subprocess, shutil
 import tarfile, zipfile
 
@@ -13,9 +16,15 @@ import numpy as np
 import numpy.ma as ma
 
 import matplotlib
-matplotlib.use("TkAgg")
+if __name__ == "__main__":
+    matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+
+#--------------------------------------------------
+
+def toRepr(value):
+    return repr(value).encode("ascii")
 
 #---------------------------------------------------------------------------
 # copied from IotlabHelper (and wrote equivalent zillion times)
@@ -25,7 +34,7 @@ def readFile(fileName):
         return f.read()
 
 def writeFile(fileName, data):
-    with open(fileName, "w") as f:
+    with open(fileName, "wb") as f:
         f.write(data)
 
 def syso(msg): # name comes from Eclipse+Java
@@ -55,12 +64,12 @@ class TarFileManager:
         uncompressCmdTable = {".lzma": "lzma", ".gz": "gzip", 
                               ".bz2": "bzip2", ".xz": "xz"}
         uncompressCmd = None
-        for suffix,cmd in uncompressCmdTable.iteritems():
+        for suffix,cmd in uncompressCmdTable.items():
             if archiveName.endswith(suffix):
                 uncompressCmd = cmd
         if uncompressCmd != None:
             cmd = [uncompressCmd, "--decompress", "--stdout", archiveName]
-            syso ("(uncompressing %s [%s]" % (archiveName, uncompressCmd))
+            syso ("(uncompressing %s in RAM [%s]" % (archiveName,uncompressCmd))
             data = subprocess.check_output(cmd) # must have proper program
             decompressedFile = StringIO(data)
         elif archiveName.endswith(".lrz"):
@@ -283,7 +292,7 @@ def tryMergeMultipleExpMetaInfo(expMetaInfoList):
 
 
 def ___finishMergeDirWithLink(fileManager, dirName, mergedExpMeta):
-    fileManager.writeFile("meta.pydat", repr(mergedExpMeta))
+    fileManager.writeFile("meta.pydat", toRepr(mergedExpMeta))
     for subDirName in mergedExpMeta[MergedKeyPrefix+"subDirName"]:
         subDirPath = fileManager.getPath(subDirName)
         for fileName in os.listdir(subDirPath):
@@ -305,7 +314,7 @@ def ___finishMergeDirWithLink(fileManager, dirName, mergedExpMeta):
 
 def finishMergeDirWithVirtualLink(fileManager, dirName, mergedExpMeta):
     archiveFileManager = fileManager.archiveFileManager
-    fileManager.writeFile("meta.pydat", repr(mergedExpMeta))
+    fileManager.writeFile("meta.pydat", toRepr(mergedExpMeta))
     realPathOf = { J(dirName, "meta.pydat"): "(generated)" }
     copiedSet = set()
 
@@ -341,7 +350,7 @@ def finishMergeDirWithVirtualLink(fileManager, dirName, mergedExpMeta):
                 
                 
     del realPathOf[J(dirName, "meta.pydat")]
-    fileManager.writeFile("virtual-link.pydat", repr(realPathOf))
+    fileManager.writeFile("virtual-link.pydat", toRepr(realPathOf))
 
 
 def ___finishMergeDirWithZip(dirName, mergedExpMeta):
@@ -356,7 +365,7 @@ def ___finishMergeDirWithZip(dirName, mergedExpMeta):
             f.write(fullPath)
             syso("+")
 
-    f.writestr(J(dirName, "meta.pydat"), repr(mergedExpMeta))
+    f.writestr(J(dirName, "meta.pydat"), toRepr(mergedExpMeta))
     realPathOf = { J(dirName, "meta.pydat"): "(generated)"}
     for subDirName in mergedExpMeta[MergedKeyPrefix+"subDirName"]:
         subDirPath = J(dirName, subDirName)
@@ -377,8 +386,7 @@ def ___finishMergeDirWithZip(dirName, mergedExpMeta):
                 new = readFile(realPathOf[newPath])
                 syso(".")
                 if old != new:
-                    raise ValueError("inconsistent file content in merge", 
-                                     (oldPath, realPathOf[newPath]))
+                  raise ValueError("inconsistent file content in merge",                                     (oldPath, realPathOf[newPath]))
     f.close()
 
 def attemptMergeDir(dirName):
@@ -424,20 +432,20 @@ def attemptMergeDir(dirName):
 
 #---------------------------------------------------------------------------
 
-#      (power, channel, sender, burst, receiver)
+#  NOT!!!    (power, channel, sender, burst, receiver)
 #       0      1        2       3      4
 
-AxisNameList = ["power", "channel", "sender", "burst", "receiver"]
+#AxisNameList = ["power", "channel", "sender", "burst", "receiver"]
 
-def getAxis(nameList):
-    assert set(nameList).issubset(set(AxisNameList))
-    return tuple(sorted([name.index(nameList) for name in nameList]))
+#def getAxis(nameList):
+#    assert set(nameList).issubset(set(AxisNameList))
+#    return tuple(sorted([name.index(nameList) for name in nameList]))
 
-def getAxisWithout(nameList, noReceiver=False):
-    assert set(nameList).issubset(set(AxisNameList))
-    return tuple([i for i,name in enumerate(AxisNameList)
-                  if (name not in nameList
-                      and (name != "receiver" or not noReceiver))])
+#def getAxisWithout(nameList, noReceiver=False):
+#    assert set(nameList).issubset(set(AxisNameList))
+#    return tuple([i for i,name in enumerate(AxisNameList)
+#                  if (name not in nameList
+#                      and (name != "receiver" or not noReceiver))])
 
 #---------------------------------------------------------------------------
 
@@ -453,7 +461,7 @@ ReprOfSeqNumError = {
     SeqNumCrc32Error: "user-crc32"
     }
 
-ErrorNameList = ( ReprOfSeqNumError.values() 
+ErrorNameList = ( list(ReprOfSeqNumError.values())
  + ["bad-seq-num", "invalid-handle-irq", "outside-burst", "generic", "magic2"] )
 
 class ExperimentParser(FileManager):
@@ -473,7 +481,7 @@ class ExperimentParser(FileManager):
         # table for results
         recvArray = np.zeros((nbNode, nbPacket), np.uint8)
         lqiArray = np.zeros((nbNode, nbPacket), np.uint8)
-        rssiArray = np.zeros((nbNode, nbPacket), np.uint8)
+        rssiArray = np.zeros((nbNode, nbPacket), np.int8)
         errorCountArrayTable = dict([ (errorName, np.zeros((nbNode,),np.int16))
                                       for errorName in ErrorNameList ])
 
@@ -514,7 +522,7 @@ class ExperimentParser(FileManager):
                 else: i += 1
             return count
 
-        for otherIdx, eventList in info["cmdXmit"][1].iteritems():
+        for otherIdx, eventList in info["cmdXmit"][1].items():
             if otherIdx == idx:
                 continue
             count = removeInvalidHandleIrq(eventList, "(#%s)" % (otherIdx)
@@ -530,7 +538,7 @@ class ExperimentParser(FileManager):
         sys.stdout.flush()
 
         # check receiver output
-        for otherIdx, eventList in info["cmdShow"][1].iteritems():
+        for otherIdx, eventList in info["cmdShow"][1].items():
             count = removeInvalidHandleIrq(eventList, "(#%s)" % (otherIdx)
                                            + "ignoring in 'show' ouput: [%s]")
             errorCountArrayTable["invalid-handle-irq"][otherIdx] += count
@@ -541,7 +549,7 @@ class ExperimentParser(FileManager):
 
         notSeenSet = set(range(nbNode))
 
-        for otherIdx, showStr in info["cmdShow"][0].iteritems():
+        for otherIdx, showStr in info["cmdShow"][0].items():
             assert otherIdx in notSeenSet
             notSeenSet.remove(otherIdx)
             if otherIdx == idx:
@@ -623,7 +631,7 @@ class ExperimentParser(FileManager):
         if len(notSeenSet) != 0:
             raise ValueError("missing report", notSeenSet)
 
-        return ({ "ed":np.array(edList), 
+        return ({ "ed":np.array(edList, np.int16),
                   "recv":recvArray,
                   "lqi":lqiArray,
                   "rssi":rssiArray }, 
@@ -644,10 +652,10 @@ class ExperimentParser(FileManager):
                 (errorName, np.zeros((dimStatRecv), np.uint16))
                 for errorName in ErrorNameList ])
 
-        fullTable = { "recv": np.zeros(dimRecv),
-                      "lqi": np.zeros(dimRecv),
-                      "rssi": np.zeros(dimRecv),
-                      "ed": np.zeros(dimSend) }
+        fullTable = { "recv": np.zeros(dimRecv,np.uint8),
+                      "lqi": np.zeros(dimRecv,np.uint8),
+                      "rssi": np.zeros(dimRecv,np.int8),
+                      "ed": np.zeros(dimSend,np.int16) }
         
         resultTable = {}
         for powerIdx,power in enumerate(powerList):
@@ -724,9 +732,13 @@ class ExperimentAnalysis(FileManager):
 
     def getIdxClosest(self, x,y,z=None):
         dAndI = [ ((x-xx)**2 + (y-yy)**2 + (0 if z==None else (z-zz))**2, i)
-                  for i,(xx,yy,zz) in enumerate(self.nodePosTable.itervalues())]
+                  for i,(xx,yy,zz) in enumerate(self.nodePosTable.values())]
         dAndI.sort()
         return dAndI[0][1], math.sqrt(dAndI[0][0])
+
+    #--------------------------------------------------
+    # commands
+    #--------------------------------------------------
 
     def summary(self):
         print ("--- Parameters")
@@ -742,17 +754,27 @@ class ExperimentAnalysis(FileManager):
             print ("total %s: %s" % (name, self.error[name].sum()))
 
         print ("--- Base stats:")
-        statRecv = self.stat["recv"].copy() # XXX:force load
-        statEd = self.stat["ed"].copy() # XXX:force load
-        totalSentPacket = self.stat["ed"].size
+        statRecv = self.getCached("recv")
+        statEd = self.getCached("ed")
+        totalSentPacket = statEd.size
         print ("Total packets sent: %s" % totalSentPacket)
         totalRecvPacket = statRecv.sum()
         print ("Total packets received: %s (avg=%s per sent packet)" 
                % (totalRecvPacket, totalRecvPacket/totalSentPacket))
 
+
         print ("--- Detailed base stats :")
         for ip,power in enumerate(self.powerList):
             for ic,channel in enumerate(self.channelList):
+
+                # compute quick stats
+                linkRecv = statRecv[ip][ic].sum(2, dtype=np.uint32) 
+                flatLinkRecv = linkRecv.flatten()
+                linkCountAll = (flatLinkRecv == self.nbPacket).sum()
+                linkCountSome = ((flatLinkRecv < self.nbPacket) 
+                                 & (flatLinkRecv > 0)).sum()
+                lossyProp = linkCountSome / (linkCountSome+linkCountAll)
+
                 s = ""
                 s += "%s dBm " % power
                 s += "ch%s " % channel
@@ -760,10 +782,172 @@ class ExperimentAnalysis(FileManager):
                 print (s+"- rcv:", int(partStatRecv.sum()), end=" - ")
                 print ("avg ed=%.04f" % statEd[ip,ic].mean(), end=" - ")
                 print ("magic=% 5d"%self.error["magic"][ip,ic].sum(), end=" - ")
-                print ("radio-crc=%s" % self.error["radio-crc"][ip,ic].sum())
+                #print ("radio-crc=%s" % self.error["radio-crc"][ip,ic].sum())
+                print ("lossy-link=%.3f %%" % (lossyProp*100))
+
+    def getMaskedData(self, name):
+        assert name in ["rssi", "lqi"]
+        recvArray = self.getCached("recv")
+        dataRawArray = self.getCached(name)
+        dataArray = np.ma.masked_array(dataRawArray,
+                                       mask=np.logical_not(recvArray))
+        return dataArray
 
 
-    def getStatData(self, powerIdx, channelIdx, refIdx, name):
+    #--------------------------------------------------
+
+    def getRssi(self):
+        # linkRecv[(channel, sender, receiver)] -> number of received pkt
+        recv = expStat["recv"]
+        linkRecv = recv[0].sum(3, dtype=np.uint32) 
+        linkRssiAvg = np.ma.masked_array(
+            expStat["rssi"], mask=(recv == 0))[0].mean(3)
+        linkLqiAvg = np.ma.masked_array(
+            expStat["lqi"], mask=(recv == 0))[0].mean(3)
+        
+        
+    #--------------------------------------------------
+
+    def plotLqiPsr(self):
+        name = "lqi"
+        recv = self.getCached("recv")
+        data = self.getMaskedData(name)
+
+        #      (power, channel, sender, receiver, packetIdx)
+        #       0      1        2       3         4     
+        assert (recv.shape[-1] == self.nbPacket)
+        assert (recv.shape == data.shape)
+
+        burstRecv = recv.sum(axis=4)
+        successRate = recv.mean(axis=4)
+        dataMean = data.mean(axis=4)
+        dataMax = data.max(axis=4)
+
+        ok = (burstRecv > 0)
+        successRate = successRate[ok].flatten()
+        dataMean = dataMean[ok].flatten()
+        dataMax = dataMax[ok].flatten()
+        plt.plot(successRate[0:], dataMean[0:],".")
+        plt.show()
+        
+        #dataMean = data.max(axis=4) # XXXX
+        assert successRate.shape == dataMean.shape
+
+
+
+        ## aaaaaargh - the data keeps being rotated!!!
+        heatmap, xLim, yLim = np.histogram2d(
+            successRate.flatten(),  dataMean.flatten(), bins=30)
+        #print (xLim, yLim)
+        #rectangle = [xLim[0],xLim[-1],yLim[0],yLim[-1]]
+        #print (rectangle)
+        #plt.clf()
+        #plt.imshow(heatmap, extent=rectangle, aspect="auto",
+        #           #cmap=matplotlib.cm.hot,
+        #           norm = matplotlib.colors.LogNorm(clip=True)
+        #           #origin="lower"
+        #           )
+        #plt.colorbar()
+        #plt.show()
+        
+
+        import pylab
+        from pylab import hist2d, show
+        hist2d(successRate.flatten(), dataMean.flatten(), bins=50,
+               norm=matplotlib.colors.LogNorm())
+        pylab.colorbar()
+        show()
+
+        hist2d(successRate.flatten(), dataMax.flatten(), bins=50,
+               norm=matplotlib.colors.LogNorm())
+        pylab.colorbar()
+        show()
+
+        
+        plt.clf()
+
+        if True:
+            from mayavi import mlab
+            zz = np.log(heatmap)
+            zz[np.isinf(zz)] = 0
+            mlab.surf(zz)
+            mlab.show()
+
+
+        data_array = np.log(heatmap)
+
+        #=== begin part copied from:
+        # http://stackoverflow.com/questions/14061061/how-can-i-render-3d-histograms-in-python
+        #
+        # Create a figure for plotting the data as a 3D histogram.
+        #
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        #
+
+        x_data, y_data = np.meshgrid( np.arange(data_array.shape[1]),
+                                      np.arange(data_array.shape[0]) )
+        #
+        # Flatten out the arrays so that they may be passed to "ax.bar3d".
+        # Basically, ax.bar3d expects three one-dimensional arrays:
+        # x_data, y_data, z_data. The following call boils down to picking
+        # one entry from each array and plotting a bar to from
+        # (x_data[i], y_data[i], 0) to (x_data[i], y_data[i], z_data[i]).
+        #
+        x_data = x_data.flatten()
+        y_data = y_data.flatten()
+        z_data = data_array.flatten()
+        #ax.zaxis.set_scale('log')        
+        ax.bar3d( x_data,
+                  y_data,
+                  np.zeros(len(z_data)),
+                  1, 1, z_data )
+        plt.show()
+        #=== end part copied
+
+        hist, xedges, yedges = np.log(heatmap), xLim, yLim
+        #=== begin part copied from:
+        # http://matplotlib.org/examples/mplot3d/hist3d_demo.html
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # [...snip...]
+        elements = (len(xedges) - 1) * (len(yedges) - 1)
+        xpos, ypos = np.meshgrid(xedges[:-1]+0.25, yedges[:-1]+0.25)
+        
+        xpos = xpos.flatten()
+        ypos = ypos.flatten()
+        zpos = np.zeros(elements)
+        dx = 0.5 * np.ones_like(zpos)
+        dy = dx.copy()
+        dz = hist.flatten()
+
+        #ax.zaxis.set_scale('log')        
+        ax.bar3d(xpos, ypos, zpos, dx, dy, dz, color='b', zsort='average')
+
+        plt.show()
+        #=== end part copied
+
+
+        #for ip,power in enumerate(self.powerList):
+        #    for ic,channel in enumerate(self.channelList):
+        #        for sendIdx in range(self.nbNode):
+        #            for recvIdx in range(self.nbNode):
+        #                data = (dataArray[ip,ic,sendIdx,recvIdx].mean())
+        #                psr =recvArray[ip,ic,sendIdx,recvIdx].mean()
+        #                if data is not np.ma.masked:
+        #                    print (data,psr)
+                   
+
+    #--------------------------------------------------
+    #
+    #--------------------------------------------------
+
+    def getStatData(self, powerIdx, channelIdx, refIdx, name, 
+                    shouldSumError=False):
+        #stat:  (len(powerList), len(channelList), nbNode, nbNode, nbPacket)
+        #error: (len(powerList), len(channelList), nbNode, nbNode)
+        #send:  (len(powerList), len(channelList), nbNode, nbPacket)
+
         if name == "lqi" or name == "rssi":
             recvArray = self.getCached("recv")
             dataRawArray = self.getCached(name)
@@ -777,12 +961,16 @@ class ExperimentAnalysis(FileManager):
             data = data.sum(axis=1) / self.nbPacket
 
         elif name == "ed":
+            # average energy of sender node idx
             data = self.getCached("ed")
             data = data[powerIdx, channelIdx].mean(axis=1)
 
         elif name in ErrorNameList:
             data = self.getCached(name)
-            data = data[powerIdx, channelIdx].sum(axis=0)
+            #print (data[powerIdx, channelIdx,refIdx])
+            if shouldSumError:
+                data = data[powerIdx, channelIdx].sum(axis=0)
+            else: data = data[powerIdx, channelIdx,refIdx]
 
         return data
 
@@ -820,7 +1008,7 @@ class ExperimentAnalysis(FileManager):
         print (minData)
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        for i,(x,y,z) in self.nodePosTable.iteritems():
+        for i,(x,y,z) in self.nodePosTable.items():
             if data[i] is np.ma.masked or data[i] <= minData *1.0001:
                 zs = [minData - (maxData-minData)*0.01, minData]
                 #continue
@@ -844,7 +1032,7 @@ class ExperimentAnalysis(FileManager):
         minAvgEd = avgEd.min()
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        for i,(x,y,z) in self.nodePosTable.iteritems():
+        for i,(x,y,z) in self.nodePosTable.items():
             ax.plot([x,x], [y,y], [minAvgEd, avgEd[idx][i]])
         plt.show()
             
@@ -910,7 +1098,7 @@ class ExperimentModel(ExperimentAnalysis): # implementation re-use
 
     def getClosest(self, x,y,z=None):
         dAndI = [ ((x-xx)**2 + (y-yy)**2 + (0 if z==None else (z-zz))**2, i)
-                  for i,(xx,yy,zz) in enumerate(self.posTable.itervalues()) ]
+                  for i,(xx,yy,zz) in enumerate(self.posTable.values()) ]
         dAndI.sort()
         return dAndI[0][1], math.sqrt(dAndI[0][0])
         
@@ -954,38 +1142,9 @@ class ExperimentControllerView:
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 from matplotlib.figure import Figure
-from Tkinter import *
 
-class FigView:
-    def __init__(self, master, x,y, plotFunction):
-        self.plotFunction = plotFunction
-        #self.figure = plt.figure()
-        self.figure = Figure(figsize=(5,4), dpi=100)
-        self.axe = self.figure.add_subplot(111, projection="3d")
-        self._redraw()
-        self.canvas = FigureCanvasTkAgg(self.figure, master=master)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=y,column=x) #,sticky=N+S+E+W)
-
-    def _redraw(self):
-        self.axe.cla()
-        self.plotFunction(self.axe)
-
-#--------------------------------------------------
-
-def plotFunc1(a):
-    t = arange(0.0,3.0,0.01)
-    s = sin(2*pi*t)
-    a.plot(t,s)
-
-def plotFunc2(a):
-    t = arange(0.0,3.0,0.01)
-    s = sin(2*pi*t)
-    a.plot(t,-s)
-
-def plotFunc3(a):
-    a.plot(range(10),range(10))
-
+try: from Tkinter import *
+except: from tkinter import * # assume python 3
 #--------------------------------------------------
 
 ModeList = ["rssi", "recv", "lqi", "ed"] + ErrorNameList
@@ -1013,6 +1172,7 @@ class ExperimentFrame(Frame):
                 #if name != "withNodeIdx":
                 self.param[name] = None
 
+        self.createErrorSumFrame()
         self.paramFrameTable = {}
         for (name, idxName, valueList) in [
             #("exp", "expIdx", )
@@ -1024,6 +1184,16 @@ class ExperimentFrame(Frame):
             self.createParamFrame(name, idxName, valueList)
         self.createFigure()
         
+    def createErrorSumFrame(self):
+        self.varShouldSumError = IntVar()
+        frame = Frame(self, relief="groove",border=3)
+        frame.pack()
+        self.buttonShouldSumError = Checkbutton(
+            frame, text="sum error", variable=self.varShouldSumError, 
+            onvalue=True, offvalue=False)
+        self.buttonShouldSumError.select()
+        self.buttonShouldSumError.pack()
+        print 
 
     def createParamFrame(self, name, nameIdx, valueList):
         pos = [0,0][:]
@@ -1109,15 +1279,18 @@ class ExperimentFrame(Frame):
             self.getParamIdx("channelIdx"), 
             nodeIdx, 
             mode)
+        shouldSum = self.varShouldSumError.get()
+        print ("shouldSum:", shouldSum)
         data = self.exp.getStatData(
             self.getParamIdx("powerIdx"), 
             self.getParamIdx("channelIdx"), 
             nodeIdx, 
-            mode)
+            mode,
+            shouldSum)
 
         minData = data.min()
         maxData = data.max()
-        for i,(x,y,z) in self.exp.getNodePosTable().iteritems():
+        for i,(x,y,z) in self.exp.getNodePosTable().items():
             if data[i] is np.ma.masked or data[i] <= minData *1.0001:
                 zs = [minData - (maxData-minData)*0.01, minData]
                 #continue
@@ -1129,7 +1302,7 @@ class ExperimentFrame(Frame):
     def _drawNode(self):
         xList = []
         yList = []
-        for x,y,z in self.exp.getNodePosTable().itervalues():
+        for x,y,z in self.exp.getNodePosTable().values():
             xList.append(x)
             yList.append(y)
         self.axeNode.plot(xList,yList,".k")
@@ -1184,46 +1357,6 @@ class ExperimentApplication(Frame):
             if otherExpFrame is not expFrame:
                 otherExpFrame.eventOtherSetParam(paramName, value)
 
-#---------------------------------------------------------------------------
-
-from numpy import arange, sin, pi
-
-def old__runGui(args):
-    master = Tk()
-    master.title("Radio Experience")
-    
-    plotFuncList = [plotFunc1, plotFunc2, plotFunc3]
-    figList = [FigView(master, i+1,1, plotFuncList[i]) for i in range(3)]
-
-    if False:
-        toolbar1Frame = Frame(master)
-        toolbar1Frame.grid(row=2,column=1,sticky=N+S+E+W)
-        toolbar1 = NavigationToolbar2TkAgg(figList[0].canvas, toolbar1Frame)
-        toolbar1.update()
-        toolbar1.grid(row=2,column=1)
-
-    #ax = fig.add_subplot(111, projection='3d')
-    
-    #figList[0].figure.canvas.mpl_connect('key_press_event', on_key_event)
-    for i in range(2):
-        #figList[i].figure.canvas.mpl_connect('button_press_event', on_key_event)
-        def on_key_event(event):
-            print('[%d] you pressed %s'% (i,event.key))
-            key_press_handler(event, dataPlot1, toolbar1)
-
-        def onclick(event):
-            print (list(event.__dict__.iteritems()))
-            print ('[%s] button=%d, x=%d, y=%d, xdata=%f, ydata=%f'%(i,
-                event.button, event.x, event.y, event.xdata, event.ydata))
-
-        #figList[i].figure.canvas.mpl_connect('key_press_event', on_key_event)
-        figList[i].figure.canvas.mpl_connect('button_press_event', onclick)
-    #figList[0].k = on_key_event
-    #figList[0].axe.mpl_connect('key_press_event', on_key_event)
-    print ("yow")
-
-    master.mainloop()
-
 #--------------------------------------------------
 
 def runGui(args):
@@ -1242,65 +1375,79 @@ def runGui(args):
 #    "0", "0.7", "1.3", "1.8", "2.3", "2.8", "3"]
 #powerList = PowerList
 
-parser = argparse.ArgumentParser()
-subparsers = parser.add_subparsers(dest="command")
+def runAsCommand():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers(dest="command")
 
-rawParserParser = subparsers.add_parser("parse")
-rawParserParser.add_argument("dirName", type=str)
+    rawParserParser = subparsers.add_parser("parse")
+    rawParserParser.add_argument("dirName", type=str)
 
-summaryParser = subparsers.add_parser("summary")
-summaryParser.add_argument("dirName", type=str)
+    summaryParser = subparsers.add_parser("summary")
+    summaryParser.add_argument("dirName", type=str)
 
-mergeParser = subparsers.add_parser("merge")
-mergeParser.add_argument("dirName", type=str)
-mergeParser.add_argument("--archive", action="store_true", default=False)
+    mergeParser = subparsers.add_parser("merge")
+    mergeParser.add_argument("dirName", type=str)
+    mergeParser.add_argument("--archive", action="store_true", default=False)
 
-posParser = subparsers.add_parser("pos")
-posParser.add_argument("dirName", type=str)
+    posParser = subparsers.add_parser("pos")
+    posParser.add_argument("dirName", type=str)
 
-testParser = subparsers.add_parser("test")
-testParser.add_argument("dirName", type=str)
+    testParser = subparsers.add_parser("test")
+    testParser.add_argument("dirName", type=str)
 
-guiParser = subparsers.add_parser("gui")
-guiParser.add_argument("dirNameList", nargs='+', type=str)
+    guiParser = subparsers.add_parser("gui")
+    guiParser.add_argument("dirNameList", nargs='+', type=str)
 
-args = parser.parse_args()
+    lqiPsrParser = subparsers.add_parser("plot-lqi-psr")
+    lqiPsrParser.add_argument("dirName", type=str)
 
-def numpyReadArray(fileName):
-    npzFile = np.load(fileName)
-    keyList = npzFile.keys()
-    if len(keyList) >= 2:
-        raise ValueError("More than 2 keys", keyList)
-    return npzFile[keyList[0]]
+    args = parser.parse_args()
+
+    def numpyReadArray(fileName):
+        npzFile = np.load(fileName)
+        keyList = npzFile.keys()
+        if len(keyList) >= 2:
+            raise ValueError("More than 2 keys", keyList)
+        return npzFile[keyList[0]]
 
 
-if args.command == "parse":
-    exp = ExperimentParser(args.dirName)
-    exp.parseToMatrix()
+    if args.command == "parse":
+        exp = ExperimentParser(args.dirName)
+        exp.parseToMatrix()
 
-elif args.command == "merge":
-    success = attemptMergeDir(args.dirName)
-    if not success:
-        print ("Error: Could not merge sub-directories of '%s'" % args.dirName)
-        sys.exit(1)
-    else:
-        print ("(merged successfully)")
+    elif args.command == "merge":
+        success = attemptMergeDir(args.dirName)
+        if not success:
+            print ("Error: Could not merge sub-directories of '%s'" 
+                   % args.dirName)
+            sys.exit(1)
+        else:
+            print ("(merged successfully)")
 
-elif args.command == "summary":
-    analysis = ExperimentAnalysis(args.dirName)
-    analysis.summary()
+    elif args.command == "summary":
+        analysis = ExperimentAnalysis(args.dirName)
+        analysis.summary()
 
-elif args.command == "test":
-    analysis = ExperimentAnalysis(args.dirName)
-    analysis.getEdOnChannel(22)
+    elif args.command == "test":
+        analysis = ExperimentAnalysis(args.dirName)
+        analysis.getEdOnChannel(22)
 
-elif args.command == "pos":
-    #analysis = ExperimentAnalysis(args.dirName)
-    #analysis.plotPos()
-    model = ExperimentModel(args.dirNameList)
-    gui = ExperimentControllerView(model)
+    elif args.command == "pos":
+        #analysis = ExperimentAnalysis(args.dirName)
+        #analysis.plotPos()
+        model = ExperimentModel(args.dirNameList)
+        gui = ExperimentControllerView(model)
 
-elif args.command == "gui":
-    runGui(args)
+    elif args.command == "plot-lqi-psr":
+        analysis = ExperimentAnalysis(args.dirName)
+        analysis.plotLqiPsr()
+
+    elif args.command == "gui":
+        runGui(args)
+
+#--------------------------------------------------
+
+if __name__ == "__main__":
+    runAsCommand()
 
 #---------------------------------------------------------------------------

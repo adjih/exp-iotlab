@@ -1,5 +1,5 @@
 
-while [ `date +"%H"` != "06" ] ; do 
+while [ `date +"%H"` != "05" ] ; do 
   python RunMultiExp.py --flash conf-radio-freq.pyconf ;
   sleep 240 ;
 done
