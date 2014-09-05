@@ -252,9 +252,22 @@ openwsn/openwsn-fw:
         && mv uart.c uart.c-orig \
         && sed s/115200/500000/g < uart.c-orig > uart.c
 
+openwsn/openwsn-fw-sink:
+	make openwsn
+	git clone ${GIT_OPENWSN_FW} openwsn/openwsn-fw-sink
+	cd openwsn/openwsn-fw-sink/firmware/openos/bsp/boards/iot-lab_M3 \
+        && mv uart.c uart.c-orig \
+        && sed s/115200/500000/g < uart.c-orig > uart.c
+	cd openwsn/openwsn-fw-sink/firmware/openos/openwsn/cross-layers/ \
+        && mv idmanager.c idmanager.c-orig \
+        && sed 's/isDAGroot.*= FALSE/isDAGroot = TRUE/g' \
+               < idmanager.c-orig > idmanager.c
+
 openwsn/openwsn-sw:
 	make openwsn
 	git clone ${GIT_OPENWSN_SW} openwsn/openwsn-sw
+
+#  sed 's@glob.glob@glob.glob("/tmp")+glob.glob@g
 
 openwsn/coap:
 	make openwsn
@@ -262,7 +275,7 @@ openwsn/coap:
 
 
 ensure-all-openwsn: openwsn openwsn/openwsn-fw openwsn/openwsn-sw \
-        openwsn/coap openwsn/openwsn.defs
+        openwsn/coap openwsn/openwsn.defs openwsn/openwsn-fw-sink
 
 ensure-openwsn-build-deps: ensure-all-openwsn ensure-gcc-arm \
             ensure-local-profile ensure-pkg-scons ensure-pkg-python-dev \
@@ -282,10 +295,15 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
 
 #firmware/openos/projects/common/oos_openwsn.so
-ensure-openwsn-m3: firmware/openos/projects/common/03oos_openwsn_prog
+ensure-openwsn-m3: openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog
 
-firmware/openos/projects/common/03oos_openwsn_prog:
+ensure-openwsn-sink-m3: openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog
+
+openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog:
 	make build-openwsn-m3
+
+openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog:
+	make build-openwsn-sink-m3
 
 build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
@@ -295,7 +313,7 @@ build-openwsn-sink-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw-sink \
         && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
 
-build-openwsn-a8-m3: ensure-openwsn-build-deps
+build-openwsn-a8-m3: ensure-openwsn-build-deps # not working
 
 run-openwsn-sim: ensure-openwsn-sim ensure-openwsn-build-deps
 	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb --sim
@@ -648,7 +666,8 @@ dbg-tunslip:
 #---------------------------------------------------------------------------
 
 help:
-	@echo "<read the Makefile.defs, Makefile, sorry>"
+	@echo "Read the README.md, Makefile.defs, Makefile, sorry"
+	@echo "or type: xdg-open https://github.com/adjih/exp-iotlab/blob/master/README.md"
 
 local:
 	mkdir local
@@ -829,6 +848,21 @@ riot-rpl-exp-deps: \
    ensure-all-iot-lab
 
 #---------------------------------------------------------------------------
+
+openwsn-exp-deps: \
+   ensure-openwsn-m3 ensure-openwsn-sink-m3 ensure-sniffer-foren6 \
+   ensure-all-iot-lab \
+   ensure-pkg-roxterm ensure-pkg-socat \
+   ensure-openlab-example-m3
+
+#---------------------------------------------------------------------------
+
+all-exp-deps: openwsn-exp-deps rpl-exp-deps
+
+#---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+
 
 build-radio-test: ensure-openlab-prepare
 	${USE_OPENLAB_DEFS} && cd iot-lab/parts/openlab/build.m3 \

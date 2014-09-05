@@ -113,6 +113,23 @@ def cmdTunslip6(args):
 
 #---------------------------------------------------------------------------
 
+def cmdPseudoTty(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    
+    forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
+    borderRouterList = forwardByType.get("openwsn-sink")
+    routerList = borderRouterList 
+    if args.all:
+        routerList += forwardByType.get("openwsn")
+    for i,(node, port) in enumerate(routerList):
+        socatCommand = ("sudo socat TCP4:localhost:%s " % port
+                        + "pty,link=/dev/ttyUSB-pseudo-%s,raw" % i)
+        print "++", socatCommand
+        processManager.startSubProcessInTerm("Socat %s" % node, socatCommand)
+
+#---------------------------------------------------------------------------
+
 def cmdForen6Sniffers(args):
     iotlab, exp = getHelperAndExp(args)
     processManager = getProcessManager(exp)
@@ -236,6 +253,9 @@ flashParser.add_argument("--type", type=str, default=None)
 
 tunslip6Parser = subparsers.add_parser("tunslip6")
 
+pseudoTtyParser = subparsers.add_parser("pseudo-tty")
+pseudoTtyParser.add_argument("--all", action="store_true", default=False)
+
 sshForwardParser = subparsers.add_parser("ssh-forward")
 sshForwardParser.add_argument("--start-port", type=int, 
                               default=SshTunnelStartPort)
@@ -283,6 +303,8 @@ elif args.command == "ssh-forward":
     cmdSshForward(args)
 elif args.command == "tunslip6":
     cmdTunslip6(args)
+elif args.command == "pseudo-tty":
+    cmdPseudoTty(args)
 elif args.command == "foren6-sniffers":
     cmdForen6Sniffers(args)
 elif args.command == "foren6":
