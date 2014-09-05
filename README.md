@@ -35,8 +35,9 @@ cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
 
 4) Automatically get and compile necessary packages and code from repositories
 ```
-make rpl-exp-deps
+make all-exp-deps
 ```
+(for both Contiki and OpenWSN).
 
 5) Configure properly your ssh access to IoT-LAB sites.
 Generate/use a ssh key documented in [ssh IoT-LAB tutorial](https://www.iot-lab.info/tutorials/configure-your-ssh-access/)
@@ -59,14 +60,66 @@ make ensure-auth-info IOTLAB_USER=<YOUR_IOTLAB_USER_NAME>
 (this just runs ```./iotlab/parts/cli-tools/auth-cli -u <IoT-LAB username>```)
 
 
-7) Start a RPL experiment as described in the next section.
+7) Start an experiment as described in the next sections
 
 ---------------------------------------------------------------------------
 
-# Launching an experiment
+# Launching an experiment with [RIOT](http://www.riot-os.org/)
 
-Once the step of the previous section have been followed, 
-you can start an experiment.
+(under construction)
+
+---------------------------------------------------------------------------
+
+# Launching an experiment with [OpenWSN](https://openwsn.atlassian.net/)
+
+Once the step of the previous section "Installing a VM with all software 
+and tools" have been followed,  you can start an experiment.
+
+There are two ways to select nodes for an experiments:
+
+- either make a reservation through https://www.iot-lab.info/ and then
+  you can select experiment duration, site, and nodes.
+- or through command line arguments of the script ExpOpenWSN.py
+
+Actually, ```ExpOpenWSN.py``` first tries to find an active
+node reservation at the IoT-LAB server; and if it does not find one,
+it would use command line arguments (with default values), 
+to make itself a reservation. Then:
+
+1) Reserve-if-they-are-not-yet-reserved and then flash nodes with OpenWSN:
+```
+cd tools
+python ExpOpenWSN.py --site grenoble --nb-nodes 5 --duration 20
+```
+
+2) Tunnel the port of the sink (and actually all OpenWSN nodes) through ssh
+  to IoT-LAB experiment server:
+```
+./expctl ssh-forward
+```
+
+3) Redirect the port of the sink through socat in /tmp/tty
+```
+./expctl pseudo-tty
+```
+
+4) Run the web interface (in directory exp-iotlab/)
+```
+(cd .. && make run-openwsn-web)
+xdg-open http://localhost:8080/
+```
+
+5) "Select mote..." choose "3236", and then you have the OpenWSN interface 
+  for the Sink.
+
+---------------------------------------------------------------------------
+
+# Launching an experiment with Contiki and RPL
+
+(this was demonstrated at 
+IETF 90 [LLN Plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90_toronto_plugfest) and [Bits-N-Bites](http://www.ietf.org/meeting/90/ietf-90-bits-n-bites.html) at Toronto).
+
+Once the step of the previous section "Installing a VM with all software and tools" have been followed,  you can start an experiment.
 
 The experiment is essentially the one described by
 IoT-LAB tutorial for [contiki IPv6 stack and tools](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/), refer to this page to really understand
