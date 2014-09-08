@@ -389,7 +389,7 @@ def ___finishMergeDirWithZip(dirName, mergedExpMeta):
                   raise ValueError("inconsistent file content in merge",                                     (oldPath, realPathOf[newPath]))
     f.close()
 
-def attemptMergeDir(dirName):
+def attemptMergeDir(args, dirName):
     fileManager = FileManager(dirName)
 
     expMetaInfoList = []
@@ -662,9 +662,9 @@ class ExperimentParser(FileManager):
             for channelIdx,channel in enumerate(channelList):
                 for idx in idxList:
                     fileName = ("exp-i%s-p%s-c%s.pydat" % (idx, power, channel))
-                    if exp.exists(fileName):
+                    if self.exists(fileName):
                         (oneTable, oneErrorCountTable 
-                         ) = exp.parseOneBurst(fileName, idx)
+                         ) = self.parseOneBurst(fileName, idx)
                         #assert set(oneTable.keys()) == set(fullTable.keys())
                         for name in fullTable.keys():
                             fullTable[name][powerIdx,channelIdx,idx] \
@@ -1090,49 +1090,6 @@ class ExperimentAnalysis(FileManager):
         print (time.time())
 
 #---------------------------------------------------------------------------
-
-class ExperimentModel(ExperimentAnalysis): # implementation re-use
-    def __init__(self, dirName):
-        ExperimentAnalysis.__init__(self, dirName)
-        self.posTable = self.nodePosTable # XXX
-
-    def getClosest(self, x,y,z=None):
-        dAndI = [ ((x-xx)**2 + (y-yy)**2 + (0 if z==None else (z-zz))**2, i)
-                  for i,(xx,yy,zz) in enumerate(self.posTable.values()) ]
-        dAndI.sort()
-        return dAndI[0][1], math.sqrt(dAndI[0][0])
-        
-
-class ExperimentControllerView:
-    def __init__(self, model):
-        self.model = model
-        self.fig = plt.figure()
-
-        self.ax = self.fig.add_subplot(111)
-        xList = []
-        yList = []
-        for x,y,z in self.model.posTable.values():
-            xList.append(x)
-            yList.append(y)
-        self.ax.plot(xList,yList,".k")
-
-        cid = self.fig.canvas.mpl_connect("button_press_event", self.eventClick)
-        plt.show()
-
-    def eventClick(self, event):
-        print ("click click", event)
-        #self.fig.clf()
-        #self.ax.clf()
-        #print (event.x, event.y, event.canvas)
-        print (event.xdata, event.canvas)
-        nodeIdx, distance = (self.model.getClosest(event.xdata,event.ydata))
-        
-        #self.ax2 = self.fig.add_subplot(222)
-        (x,y,z) = self.model.posTable[nodeIdx]
-        print(self.ax.plot([x],[y], "o"))
-
-        plt.draw()
-
 #---------------------------------------------------------------------------
 # GUI
 #---------------------------------------------------------------------------
@@ -1234,11 +1191,22 @@ class ExperimentFrame(Frame):
                 command = makeParamCallback(name, nameIdx, i))
             button.grid(getPos())
         frame.pack()
-        
+
 
     def createFigure(self):
+        self.frameNode = Frame(self)
+        self.figureNode = Figure(figsize=(5,2.5), dpi=100)
+        self.canvasNode = FigureCanvasTkAgg(
+            self.figureNode, master=self.frameNode)
+        self.canvasNode.draw()
+        self.axeNode = self.figureNode.add_subplot(111)
+        self.axeNode.set_aspect("equal")
+        self.axeNode.grid()
+        self._drawNode()
+        self._drawSelectedNode()
+        self.canvasNode.get_tk_widget().pack({"side":"bottom"})
+
         self.frameResult = Frame(self)
-        self.frameResult.pack({"side":"bottom"})
         self.figure = Figure(figsize=(5,4), dpi=100)
         # canvas before axe: http://www.mail-archive.com/matplotlib-users@lists.sourceforge.net/msg15322.html
         self.canvas = FigureCanvasTkAgg(self.figure, master=self.frameResult)
@@ -1247,15 +1215,8 @@ class ExperimentFrame(Frame):
         self._redraw()
         self.canvas.get_tk_widget().pack({"side":"bottom"})
 
-        self.frameNode = Frame(self)
+        self.frameResult.pack({"side":"bottom"})
         self.frameNode.pack({"side":"bottom"})
-        self.figureNode = Figure(figsize=(5,4), dpi=100)
-        self.canvasNode = FigureCanvasTkAgg(
-            self.figureNode, master=self.frameNode)
-        self.canvasNode.draw()
-        self.axeNode = self.figureNode.add_subplot(111)
-        self._drawNode()
-        self.canvasNode.get_tk_widget().pack({"side":"bottom"})
 
     def getParamIdx(self, name):
         result = self.param[name]
@@ -1274,13 +1235,13 @@ class ExperimentFrame(Frame):
         if self.param["withNodeIdx"] == 0:
             nodeIdx = self.param["nodeIdx"]
         else: nodeIdx = self.otherParam.get("nodeIdx", 0)
-        print ("REDRAW", self.param, mode, nodeIdx)
-        print (            self.getParamIdx("powerIdx"), 
-            self.getParamIdx("channelIdx"), 
-            nodeIdx, 
-            mode)
+        #print ("REDRAW", self.param, mode, nodeIdx)
+        #print (            self.getParamIdx("powerIdx"), 
+        #    self.getParamIdx("channelIdx"), 
+        #    nodeIdx, 
+        #    mode)
         shouldSum = self.varShouldSumError.get()
-        print ("shouldSum:", shouldSum)
+        #print ("shouldSum:", shouldSum)
         data = self.exp.getStatData(
             self.getParamIdx("powerIdx"), 
             self.getParamIdx("channelIdx"), 
@@ -1296,8 +1257,23 @@ class ExperimentFrame(Frame):
                 #continue
             else: zs = [minData, data[i]]
             self.axe.plot([x,x], [y,y], zs)
+
         self.canvas.draw()
 
+    def _drawSelectedNode(self):
+        nodeIdx = 0
+        mode = ModeList[self.getParamIdx("modeIdx")]
+        if self.param["withNodeIdx"] == 0:
+            nodeIdx = self.param["nodeIdx"]
+        else: nodeIdx = self.otherParam.get("nodeIdx", 0)
+        print ("selected: nodeIdx=%s" % nodeIdx)
+        nodePosTable = self.exp.getNodePosTable()
+        (x,y,z) = nodePosTable[nodeIdx]
+        # http://matplotlib.1069221.n5.nabble.com/change-a-matplotlib-lines-Line2D-and-update-the-plot-td21806.html
+        if self.selectedNodeLine2D == None:
+            self.selectedNodeLine2D = self.axeNode.plot([x],[y], "o")
+        else: self.selectedNodeLine2D[0].set_data([x],[y])
+        self.canvasNode.draw()
 
     def _drawNode(self):
         xList = []
@@ -1308,7 +1284,7 @@ class ExperimentFrame(Frame):
         self.axeNode.plot(xList,yList,".k")
         cid = self.figureNode.canvas.mpl_connect(
             "button_release_event", self.eventClick)
-
+        self.selectedNodeLine2D = None
 
     def eventClick(self, event):
         if event.inaxes == None:
@@ -1317,16 +1293,11 @@ class ExperimentFrame(Frame):
         nodeIdx, distance = (self.exp.getIdxClosest(event.xdata,event.ydata))
         self.setParam("nodeIdx", nodeIdx)
         return
-        
-        #self.ax2 = self.fig.add_subplot(222)
-        (x,y,z) = self.model.posTable[nodeIdx]
-        print(self.ax.plot([x],[y], "o"))
-
-        plt.draw()
-
 
     def setParam(self, paramName, value):
         self.param[paramName] = value
+        if paramName == "nodeIdx":
+            self._drawSelectedNode()
         self._redraw()
         self.app.eventSetParam(self, paramName, value)
 
@@ -1416,7 +1387,7 @@ def runAsCommand():
         exp.parseToMatrix()
 
     elif args.command == "merge":
-        success = attemptMergeDir(args.dirName)
+        success = attemptMergeDir(args, args.dirName)
         if not success:
             print ("Error: Could not merge sub-directories of '%s'" 
                    % args.dirName)
