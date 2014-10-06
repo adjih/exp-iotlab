@@ -239,9 +239,9 @@ TypeToFirmware = {
     "riot":
         "XXX",
     "openwsn":
-        "../openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog",
+        "../openwsn/openwsn-fw/projects/common/03oos_openwsn_prog",
     "openwsn-sink":
-        "../openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog",
+        "../openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog",
     "hipera": # (an in-house stack)
         "/home/user/HgRep/hipera/platform/freertos/openlab-hiper/build/bin/test_hipera.elf"
 }

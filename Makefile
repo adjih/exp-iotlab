@@ -248,17 +248,17 @@ openwsn:
 openwsn/openwsn-fw:
 	make openwsn
 	git clone ${GIT_OPENWSN_FW} openwsn/openwsn-fw
-	cd openwsn/openwsn-fw/firmware/openos/bsp/boards/iot-lab_M3 \
+	cd openwsn/openwsn-fw/bsp/boards/iot-lab_M3 \
         && mv uart.c uart.c-orig \
         && sed s/115200/500000/g < uart.c-orig > uart.c
 
 openwsn/openwsn-fw-sink:
 	make openwsn
 	git clone ${GIT_OPENWSN_FW} openwsn/openwsn-fw-sink
-	cd openwsn/openwsn-fw-sink/firmware/openos/bsp/boards/iot-lab_M3 \
+	cd openwsn/openwsn-fw-sink/bsp/boards/iot-lab_M3 \
         && mv uart.c uart.c-orig \
         && sed s/115200/500000/g < uart.c-orig > uart.c
-	cd openwsn/openwsn-fw-sink/firmware/openos/openwsn/cross-layers/ \
+	cd openwsn/openwsn-fw-sink/openstack/cross-layers/ \
         && mv idmanager.c idmanager.c-orig \
         && sed 's/isDAGroot.*= FALSE/isDAGroot = TRUE/g' \
                < idmanager.c-orig > idmanager.c

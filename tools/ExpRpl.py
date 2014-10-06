@@ -71,7 +71,7 @@ elif args.exp_type == "openwsn":
     currentNodeList = IotlabHelper.sortNodeByPriority(
         currentNodeList, BorderRouterPriorityList)
 
-    OpenWSNRouterFwFileName = "../openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog"
+    OpenWSNRouterFwFileName = "../openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog"
 
     borderRouterList, currentNodeList = exp.ensureFlashedNodes(
         "openwsn-sink", OpenWSNRouterFwFileName, 1, currentNodeList)

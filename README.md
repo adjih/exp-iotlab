@@ -35,9 +35,9 @@ cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
 
 4) Automatically get and compile necessary packages and code from repositories
 ```
-make all-exp-deps
+make all-exp-deps USE_DEMO_REPO=yes
 ```
-(for both Contiki and OpenWSN).
+(for both Contiki and OpenWSN). The option USE_DEMO_REPO will use in some case(s), fork(s) of repositories with minor modifications, instead of main repositories.
 
 5) Configure properly your ssh access to IoT-LAB sites.
 Generate/use a ssh key documented in [ssh IoT-LAB tutorial](https://www.iot-lab.info/tutorials/configure-your-ssh-access/)
