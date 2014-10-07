@@ -7,7 +7,7 @@ import pprint, os, sys
 import matplotlib.pyplot as plt
 import argparse
 
-sys.path.extend(["..", "."])
+sys.path.extend(["..", ".","../.."])
 import IotlabHelper
 from IotlabHelper import extractNodeId, extractNodeName
 

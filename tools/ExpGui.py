@@ -316,14 +316,14 @@ class ExpViewController:
         os.system(cmd)
         self.model.updateInfo()
 
-    def cmdPingLastNode(self):
+    def cmdPingLastNode(self, interval = 1):
         if self.lastNodeId == None or self.currentNodeInfo == None:
             print "<no last node>"
             return
         title1 = "ping6 [%s]" % self.currentNodeInfo
         address = [x for x in self.currentNodeInfo.split(" ") if x != ""][1] # XXX!!!!
         title2 = "Node %s" % self.lastNodeId
-        cmd = "sudo ping6 -s1 %s" % (address)
+        cmd = "sudo ping6 -O -i %s -s1 %s" % (interval, address)
         os.system("roxterm --fork -T '%s' -n '%s' -e bash -c '%s ; sleep 10'"
                   % (title1, title2, cmd))
 
@@ -369,7 +369,12 @@ class ExpViewController:
                     elif event.key == pygame.K_2:
                         if event.mod & pygame.KMOD_ALT != 0:
                             self.setCurrentType("contiki-rpl-node")
-                        else: self.setCurrentGroup("rpl-node")
+                        else: self.setCurrentGroup("rpl-nodes")
+                    elif event.key == pygame.K_3:
+                        if event.mod & pygame.KMOD_ALT != 0:
+                            self.setCurrentType("contiki-border-router")
+                        else: self.setCurrentGroup("rpl-border")
+
 
                     #    self.deleteGroup()
                     elif event.key == pygame.K_l: #XXX
@@ -390,7 +395,10 @@ class ExpViewController:
                     elif event.key == pygame.K_e:
                         self.cmdSelectedNodes("start")
                     elif event.key == pygame.K_p:
-                        self.cmdPingLastNode()
+                        if event.mod & pygame.KMOD_ALT != 0:
+                            self.cmdPingLastNode(10)
+                        else: self.cmdPingLastNode()
+
                     elif event.unicode == u'[':
                         self.updateCurrentGroup(-1)
                     elif event.unicode == u']':
@@ -473,7 +481,8 @@ class ExpViewController:
             "zep-sniffer": (255,255,0),
             "foren6-sniffer": (255,0,0),
             "contiki-rpl-node": (0,0,255),
-            "border-router": (0,255,0),
+            "border-router": (0,255,255),
+            "contiki-border-router": (0,255,0),
             "openwsn": (0,0,127),
             "openwsn-sink": (0,255,255),
             "hipera": (127,255,127)

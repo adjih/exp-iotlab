@@ -16,7 +16,7 @@ CommandList = [
     ("info", "./expctl info"),
     ("forw.ports", "./expctl ssh-forward"),
     ("tunslip6", "./expctl tunslip6"),
-    ("reset BR", "./expctl reset border-router"),
+    ("reset BR", "./expctl reset contiki-border-router"),
     ("foren6-sniffers", "./expctl foren6-sniffers"),
     ("foren6", "./expctl foren6"),
     ("wireshark", 'sudo wireshark -k -i lo -Y "zep and icmpv6" &'),

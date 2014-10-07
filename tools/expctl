@@ -49,7 +49,7 @@ def getProcessManager(exp):
 # Commands
 #---------------------------------------------------------------------------
 
-ForwardedTypeList = ["border-router", "zep-sniffer", "foren6-sniffer",
+ForwardedTypeList = ["contiki-border-router", "zep-sniffer", "foren6-sniffer",
                      "openwsn", "openwsn-sink"]
 
 def cmdSshForward(args):
@@ -102,7 +102,7 @@ def cmdTunslip6(args):
     processManager = getProcessManager(exp)
     
     forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
-    borderRouterList = forwardByType.get("border-router")
+    borderRouterList = forwardByType.get("contiki-border-router")
     for node, port in borderRouterList:
         tunslipCommand = ("sudo " +TunslipBinFileName
                           +" aaaa::1/64 -L -a localhost"

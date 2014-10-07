@@ -54,7 +54,7 @@ if args.exp_type == "contiki":
         currentNodeList, BorderRouterPriorityList)
 
     borderRouterList, currentNodeList = exp.ensureFlashedNodes(
-        "border-router", BorderRouterFwFileName, 1, currentNodeList)
+        "contiki-border-router", BorderRouterFwFileName, 1, currentNodeList)
     print borderRouterList
     assert len(borderRouterList) == 1
     borderRouterNode = borderRouterList[0]
