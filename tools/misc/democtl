@@ -1,0 +1,111 @@
+#! /usr/bin/python
+#---------------------------------------------------------------------------
+# Cedric Adjih - Inria - 2014
+#---------------------------------------------------------------------------
+
+import pprint, os, sys
+import matplotlib.pyplot as plt
+import argparse
+
+sys.path.extend(["..", "."])
+import IotlabHelper
+from IotlabHelper import extractNodeId, extractNodeName
+
+#---------------------------------------------------------------------------
+
+def getSiteInfo(site, noCache):
+    iotlab = IotlabHelper.IotlabHelper()
+
+    CacheName = "node-list-%s-cache.txt" % site
+    if not os.path.exists(CacheName) or noCache:
+        siteInfo = iotlab.getResources(site)
+        with open(CacheName, "w") as f:
+            f.write(repr(siteInfo))
+    else:
+        with open(CacheName) as f:
+            siteInfo = eval(f.read())
+    return siteInfo
+
+def getNodeInfo(site, noCache, arch):
+    siteInfo = getSiteInfo(site, noCache)
+    nodePosList = [(extractNodeId(info["network_address"]), 
+                    (float(info["x"]), float(info["y"]), float(info["z"])))
+                   for info in siteInfo
+                   if info["archi"] == arch 
+                   and info["state"] in ("Alive", "Busy")]
+    return nodePosList
+
+#---------------------------------------------------------------------------
+
+def filterNodeList(site, filterName, nodePosList):
+    if filterName == None:
+        selected = [nodeId for nodeId,p in  nodePosList]
+    elif site == "grenoble" and filterName == "square":
+        selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
+                         if z < 0 and x < 20])
+    else: raise RuntimeError("Unknown node filtering", (site, filterName))
+    result = [ (nodeId,p) for nodeId,p in nodePosList if nodeId in selected ]
+    return result
+
+def getSelectedNodeList(args):
+    nodePosList = getNodeInfo(args.site, args.no_cache, args.arch)
+    finalNodePosList = filterNodeList(args.site, args.filter, nodePosList)
+    return finalNodePosList
+
+#---------------------------------------------------------------------------
+
+def cmdPlot(args):
+    nodePosList = getSelectedNodeList(args)
+    xList = [ x for nodeId,(x,y,z) in nodePosList]
+    yList = [ y for nodeId,(x,y,z) in nodePosList]
+    zList = [ y for nodeId,(x,y,z) in nodePosList]
+    plt.plot(xList, yList, "*")
+    plt.show()
+
+def cmdReserve(args):
+    arch = args.arch
+    nodePosList = getSelectedNodeList(args)
+    nodeIdSet = set([ nodeId for nodeId,p in nodePosList ])
+    #nodeList = getSiteInfo(args.site, args.no_cache)
+    #nodeNameList = [extractNodeName(info["network_address"]) 
+    #                for info in nodeList
+    #                if info["archi"] == args.arch 
+    #                and extractNodeId(info["network_address"]) in nodeIdSet]
+    shortArch = arch.split(":")[0]
+    cmd = "experiment-cli submit -l %s,%s,%s" % (
+        args.site, shortArch, "+".join(sorted(list(["%s"%x for x in nodeIdSet]))))
+    print (cmd)
+    #pprint.pprint(nodeList)
+
+#---------------------------------------------------------------------------
+
+def runAsCommand():
+    DefaultSiteName = "grenoble"
+    DefaultArch = "m3:at86rf231"
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--site", type=str, default=DefaultSiteName)
+    parser.add_argument("--filter", type=str, default=None)
+    parser.add_argument("--no-cache", action="store_true", default=False)
+    parser.add_argument("--arch", type=str, default=DefaultArch)
+
+    subparsers = parser.add_subparsers(dest="command")
+    plotParser = subparsers.add_parser("plot")
+    reserveParser = subparsers.add_parser("reserve")
+    #showParser = subparsers.add_parser("show")
+
+    args = parser.parse_args()
+    if args.command == "plot":
+        cmdPlot(args)    
+    elif args.command == "show":
+        cmdShow(args)
+    elif args.command == "reserve":
+        cmdReserve(args)
+    else: raise RuntimeError("Unexpected command", args.command)
+
+#---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    runAsCommand()
+
+#---------------------------------------------------------------------------

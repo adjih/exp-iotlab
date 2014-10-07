@@ -240,6 +240,14 @@ class ExpViewController:
         assert 0 <= newTypeIdx < len(typeList)
         self.currentType = typeList[newTypeIdx]
 
+    def setCurrentType(self, name):
+        typeList = IotlabHelper.TypeToFirmware.keys()
+        if name not in typeList:
+            print ("<cannot find type %s>" % name)
+        newTypeIdx = typeList.index(name)
+        assert 0 <= newTypeIdx < len(typeList)
+        self.currentType = typeList[newTypeIdx]
+
     def updateCurrentGroup(self, delta):
         groupList = self.model.getGroupList()
         if len(groupList) == 0:
@@ -251,6 +259,18 @@ class ExpViewController:
         newGroupIdx = (groupIdx+delta) % len(groupList)
         assert 0 <= newGroupIdx < len(groupList)
         self.currentGroup = groupList[newGroupIdx]
+
+    def setCurrentGroup(self, name):
+        groupList = self.model.getGroupList()
+        if name not in groupList:
+            print ("<cannot find group %s>" % name)
+            self.currentGroup = None
+            return
+        self.currentGroup = name
+        newGroupIdx = groupList.index(self.currentGroup)
+        assert 0 <= newGroupIdx < len(groupList)
+        self.currentGroup = groupList[newGroupIdx]
+        self.selectGroup()
         
     def newGroup(self):
         groupList = self.model.getGroupList()
@@ -339,7 +359,18 @@ class ExpViewController:
 
                     elif event.key == pygame.K_n:
                         self.newGroup()
-                    #elif event.key == pygame.K_d:
+
+                    elif event.key == pygame.K_0:
+                        self.setCurrentType("default")
+                    elif event.key == pygame.K_1:
+                        if event.mod & pygame.KMOD_ALT != 0:
+                            self.setCurrentType("foren6-sniffer")
+                        else: self.setCurrentGroup("sniffers")
+                    elif event.key == pygame.K_2:
+                        if event.mod & pygame.KMOD_ALT != 0:
+                            self.setCurrentType("contiki-rpl-node")
+                        else: self.setCurrentGroup("rpl-node")
+
                     #    self.deleteGroup()
                     elif event.key == pygame.K_l: #XXX
                         print self.model.groupManager.getGroupList()

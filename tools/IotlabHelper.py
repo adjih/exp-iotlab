@@ -55,6 +55,11 @@ def extractNodeId(address):
     nodeName = address.split(".")[0]
     return int(nodeName.split("-")[-1])
 
+def extractNodeName(address):
+    """m3-4.grenoble.iot-lab.info -> m3-4"""
+    nodeName = address.split(".")[0]
+    return nodeName
+
 def reprNodeList(nodeList):
     return ",".join([address.split(".")[0] for address in nodeList])
 
@@ -109,6 +114,14 @@ ExpStateList = ["Running", "Waiting", "Error", "Terminated", "Launching",
 
 AllList = ("AllList",) # All nodes
 MaxFlashAttempts = 30
+
+
+def concatDict(d1, d2):
+    result = {}
+    kSet = set(d1.keys()).union(d2.keys())
+    for k in kSet:
+        result[k] = d1.get(k, []) + d2.get(k, [])
+    return result
 
 class IotlabExp:
     def __init__(self, helper, expId):
@@ -170,6 +183,51 @@ class IotlabExp:
                        for nodeInfo in expInfo["items"]]
         return addressList
 
+
+    def doNodeCmdUpdate(self, tentativeNodeList, firmwareData):
+        MaxNbNode = 200
+        result = {}
+        
+        #-----
+        # XXX -- was used for debugging
+        #nodeOrder = [267,13,191,146,142,231,130,132,292,214]
+        #def getPriority(nodeName):
+        #    nodeId = extractNodeId(nodeName)
+        #    if nodeId in nodeOrder:
+        #        return nodeOrder.index(nodeId)
+        #    else: return len(nodeOrder)
+        #tentativeNodeList.sort(key=getPriority)
+        #
+        #excludedSet = set([267,13,191,146,142,231,130,132,292,214])
+        excludedSet = set([142])
+
+        removedNodeList = [
+            x for x in tentativeNodeList
+            if extractNodeId(x) in excludedSet ]
+        removedNodeSet = set(removedNodeList)
+
+        tentativeNodeList = [ 
+            x for x in tentativeNodeList if x not in removedNodeSet ]
+        #-----
+
+        def reprNodeList(nodeList):
+            nameList = ["%s"%extractNodeId(x) for x in nodeList]
+            return ",".join(nameList)
+
+        for i in range(0, len(tentativeNodeList), MaxNbNode):
+            partNodeList = tentativeNodeList[i:i+MaxNbNode]
+            sys.stdout.write("["+reprNodeList(partNodeList))
+            sys.stdout.flush()
+            startTime = time.time()
+            partResult = self.doNodeCmd("update", partNodeList, firmwareData)
+            stopTime = time.time()
+            sys.stdout.write("->%d]" % int(stopTime-startTime))
+            result = concatDict(result, partResult)
+
+        result = concatDict(result, { u"1": removedNodeList })
+
+        return result
+
     def safeFlashNodes(self, firmwareFileName, nodeCount, initialNodeList, 
                        verbose=True, shouldTryOnce=False):
         """Flash nodes until the exact number `nodeCount' is successfully 
@@ -204,7 +262,7 @@ class IotlabExp:
                 sys.stdout.write("  . flashing %s:" % reprNodeList(
                         tentativeNodeList))
                 sys.stdout.flush()
-            result = self.doNodeCmd("update", tentativeNodeList, firmwareData)
+            result = self.doNodeCmdUpdate(tentativeNodeList, firmwareData)
             successfulNodeList = result.get('0', [])
             failedNodeList = result.get('1', [])
             if verbose:
