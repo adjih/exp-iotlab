@@ -374,6 +374,12 @@ class ExpViewController:
                         if event.mod & pygame.KMOD_ALT != 0:
                             self.setCurrentType("contiki-border-router")
                         else: self.setCurrentGroup("rpl-border")
+                    elif event.key == pygame.K_4:
+                        self.setCurrentGroup("bottom-line")
+                    elif event.key == pygame.K_5:
+                        self.setCurrentGroup("connect")
+                    elif event.key == pygame.K_6:
+                        self.setCurrentGroup("further-connect")
 
 
                     #    self.deleteGroup()
