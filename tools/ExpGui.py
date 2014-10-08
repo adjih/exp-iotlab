@@ -346,6 +346,7 @@ class ExpViewController:
                 if event.type == pygame.QUIT:
                     self.isFinished = True
                 elif event.type == pygame.KEYDOWN:
+                    #print event, event.pygame.K_0
                     if event.key == pygame.K_q:
                         self.isFinished = True
                     elif event.key == pygame.K_c:
@@ -353,32 +354,32 @@ class ExpViewController:
                     elif (#event.key == pygame.K_p or 
                           event.unicode == u'+'): 
                         self.updateCurrentType(+1)
-                    elif (event.unicode == u'-'
+                    elif ( (event.unicode == u'-' and event.scancode != 15)
                           or event.key == pygame.K_m):
                         self.updateCurrentType(-1)
 
                     elif event.key == pygame.K_n:
                         self.newGroup()
 
-                    elif event.key == pygame.K_0:
+                    elif event.unicode == '0' or event.unicode == u'\xe0':
                         self.setCurrentType("default")
-                    elif event.key == pygame.K_1:
+                    elif event.unicode == '1' or event.unicode == u'&':
                         if event.mod & pygame.KMOD_ALT != 0:
                             self.setCurrentType("foren6-sniffer")
                         else: self.setCurrentGroup("sniffers")
-                    elif event.key == pygame.K_2:
+                    elif event.unicode == '2' or event.unicode == u'\xe9':
                         if event.mod & pygame.KMOD_ALT != 0:
                             self.setCurrentType("contiki-rpl-node")
                         else: self.setCurrentGroup("rpl-nodes")
-                    elif event.key == pygame.K_3:
+                    elif event.unicode == '3' or event.unicode == u'"':
                         if event.mod & pygame.KMOD_ALT != 0:
                             self.setCurrentType("contiki-border-router")
                         else: self.setCurrentGroup("rpl-border")
-                    elif event.key == pygame.K_4:
+                    elif event.unicode == '4' or event.unicode == u"'":
                         self.setCurrentGroup("bottom-line")
-                    elif event.key == pygame.K_5:
+                    elif event.unicode == '5' or event.unicode == u'(':
                         self.setCurrentGroup("connect")
-                    elif event.key == pygame.K_6:
+                    elif event.unicode == '6' or event.unicode == u'-':
                         self.setCurrentGroup("further-connect")
 
 
