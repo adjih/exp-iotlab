@@ -22,6 +22,7 @@ CommandList = [
     ("wireshark", 'sudo wireshark -k -i lo -Y "zep and icmpv6" &'),
     ("gui", "./expctl gui &"),
     ("shake", """roxterm --fork -T shake -e bash -c 'W=$(wmctrl -l | grep -i foren6 | cut "-d " -f1); echo "moving window $W (foren6) constantly" ; D=0.1 ; U=350; V=351 ; while true ; do wmctrl -i -r $W -e 0,-1,$U,-1,-1 ; wmctrl -i -r $W -e 0,-1,$V,-1,-1 ; sleep $D ; done'"""),
+    ("shake2", """roxterm --fork -T shake -e bash -c 'W=$(wmctrl -l | grep -i foren6 | cut "-d " -f1); echo "moving window $W (foren6) constantly" ; D=0.1 ; U=450; V=$(($U+1)) ; while true ; do wmctrl -i -r $W -e 0,-1,$U,-1,-1 ; wmctrl -i -r $W -e 0,-1,$V,-1,-1 ; sleep $D ; done'"""),
 
     ("!smartrf-sniffer", "./expctl foren6-sniffers --output wireshark+smartrf"),
     ("!wireshark-zep", 'sudo wireshark -k -i lo -Y "zep" &')
