@@ -40,11 +40,13 @@ apt-get install -y usbutils python-pyudev tkdiff man emacs23 \
        python-paramiko graphviz lsb-release python-pygame
 
 if [ "$2" = "extra" ] ; then
-  add-apt-repository "deb http://repo.mate-desktop.org/archive/1.8/ubuntu $(lsb_release -cs) main"
-  wget -q http://mirror1.mate-desktop.org/debian/mate-archive-keyring.gpg -O- \
-  | apt-key add -
+  apt-add-repository ppa:ubuntu-mate-dev/ppa
+  apt-add-repository ppa:ubuntu-mate-dev/trusty-mate
+  #wget -q http://mirror1.mate-desktop.org/debian/mate-archive-keyring.gpg -O- \
+  #| apt-key add -
   apt-get update -y
-  apt-get install -y --force-yes mate-core mate-desktop-environment mate-notification-daemon
+  #apt-get install -y --force-yes mate-core mate-desktop-environment mate-notification-daemon
+  apt-get install --no-install-recommends -y --force-yes  ubuntu-mate-core ubuntu-mate-desktop
   apt-get install -y cdbs build-essential texlive \
      software-properties-common gdebi-core openocd 
   #add-apt-repository -s "http://archive.ubuntu.com/ubuntu/ trusty main"
