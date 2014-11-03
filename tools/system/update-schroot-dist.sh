@@ -40,8 +40,8 @@ apt-get install -y usbutils python-pyudev tkdiff man emacs23 \
        python-paramiko graphviz lsb-release python-pygame
 
 if [ "$2" = "extra" ] ; then
-  apt-add-repository ppa:ubuntu-mate-dev/ppa
-  apt-add-repository ppa:ubuntu-mate-dev/trusty-mate
+  apt-add-repository -y ppa:ubuntu-mate-dev/ppa
+  apt-add-repository -y ppa:ubuntu-mate-dev/trusty-mate
   #wget -q http://mirror1.mate-desktop.org/debian/mate-archive-keyring.gpg -O- \
   #| apt-key add -
   apt-get update -y
@@ -53,7 +53,7 @@ if [ "$2" = "extra" ] ; then
   #apt-get update -y
 fi
 
-apt-get purge -y ibus
+#apt-get purge -y ibus
 
 if [ `arch` = x86_64 ] ; then
   # http://www.unixmen.com/enable-32-bit-support-64-bit-ubuntu-13-10-greater/

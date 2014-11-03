@@ -258,10 +258,11 @@ openwsn/openwsn-fw-sink:
 	cd openwsn/openwsn-fw-sink/bsp/boards/iot-lab_M3 \
         && mv uart.c uart.c-orig \
         && sed s/115200/500000/g < uart.c-orig > uart.c
-	cd openwsn/openwsn-fw-sink/openstack/cross-layers/ \
-        && mv idmanager.c idmanager.c-orig \
-        && sed 's/isDAGroot.*= FALSE/isDAGroot = TRUE/g' \
-               < idmanager.c-orig > idmanager.c
+
+#	cd openwsn/openwsn-fw-sink/openstack/cross-layers/ \
+#        && mv idmanager.c idmanager.c-orig \
+#        && sed 's/isDAGroot.*= FALSE/isDAGroot = TRUE/g' \
+#               < idmanager.c-orig > idmanager.c
 
 openwsn/openwsn-sw:
 	make openwsn
@@ -283,7 +284,7 @@ ensure-openwsn-build-deps: ensure-all-openwsn ensure-gcc-arm \
 	    ensure-python-pip ensure-pip-PyDispatcher \
            ensure-pkg-python-serial
 
-build-all-openwsn: build-openwsn-m3 build-openwsn-a8-m3 build-openwsn-sim
+build-all-openwsn: build-openwsn-m3 build-openwsn-sink-m3 build-openwsn-sim
 
 build-openwsn-sim: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
@@ -295,14 +296,14 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
 
 #firmware/openos/projects/common/oos_openwsn.so
-ensure-openwsn-m3: openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog
+ensure-openwsn-m3: openwsn/openwsn-fw/projects/common/03oos_openwsn_prog
 
-ensure-openwsn-sink-m3: openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog
+ensure-openwsn-sink-m3: openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog
 
-openwsn/openwsn-fw/firmware/openos/projects/common/03oos_openwsn_prog:
+openwsn/openwsn-fw/projects/common/03oos_openwsn_prog:
 	make build-openwsn-m3
 
-openwsn/openwsn-fw-sink/firmware/openos/projects/common/03oos_openwsn_prog:
+openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog:
 	make build-openwsn-sink-m3
 
 build-openwsn-m3: ensure-openwsn-build-deps
@@ -311,7 +312,7 @@ build-openwsn-m3: ensure-openwsn-build-deps
 
 build-openwsn-sink-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw-sink \
-        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
+        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn dagroot=1
 
 build-openwsn-a8-m3: ensure-openwsn-build-deps # not working
 

@@ -6,6 +6,7 @@
 #---------------------------------------------------------------------------
 
 import sys, os, re, pprint
+import warnings
 
 #thisScriptPath = os.path.realpath(inspect.getfile(inspect.currentframe()))
 #thisDirName = os.path.dirname(thisScriptPath)
@@ -15,7 +16,11 @@ import argparse
 import IotlabHelper
 from IotlabHelper import extractNodeId, AllPossibleNodes
 
-import ExpGui # comment if pb and you don't need a GUI
+try: 
+    import ExpGui # comment if pb and you don't need a GUI
+except: 
+    warnings.warn("could not 'import ExpGui', skipping it "
+                  +"(some operations will fail)")
 
 #---------------------------------------------------------------------------
 # utils
