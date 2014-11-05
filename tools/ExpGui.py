@@ -86,6 +86,8 @@ class ExpModel:
                         (float(info["x"]), float(info["y"]), float(info["z"])))
                        for info in siteInfo
                        if info["archi"] == archi 
+                       and "null" not in (info["network_address"],
+                                          info["x"], info["y"], info["z"])
                        and info["state"] in ("Alive", "Busy")]
 
         if DisplayHack:
@@ -93,6 +95,8 @@ class ExpModel:
                             (-float(info["y"]), float(info["x"]), float(info["z"])))
                            for info in siteInfo
                            if info["archi"] == archi 
+                           and "null" not in (info["network_address"],
+                                              info["x"], info["y"], info["z"])
                            and info["state"] in ("Alive", "Busy")]
 
 

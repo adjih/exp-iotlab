@@ -31,7 +31,8 @@ def getNodeInfo(site, noCache, arch):
     nodePosList = [(extractNodeId(info["network_address"]), 
                     (float(info["x"]), float(info["y"]), float(info["z"])))
                    for info in siteInfo
-                   if info["archi"] == arch 
+                   if info["archi"] == arch
+                   and info["mobile"] == 0
                    and info["state"] in ("Alive", "Busy")]
     return nodePosList
 
