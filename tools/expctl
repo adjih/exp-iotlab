@@ -191,7 +191,9 @@ def cmdInfo(args):
 
 def cmdGui(args):
     iotlab, exp = getHelperAndExp(args)
-    ExpGui.runGui(iotlab, exp)
+    if args.full_topology:
+        ExpGui.DisplayHack = False # XXX: clean up
+    ExpGui.runGui(iotlab, exp, args)
 
 #---------------------------------------------------------------------------
 
@@ -292,6 +294,9 @@ foren6SniffersParser.add_argument("--output", type=str,
 foren6Parser = subparsers.add_parser("foren6")
 
 guiParser = subparsers.add_parser("gui")
+guiParser.add_argument("--width", type=int, default=800)
+guiParser.add_argument("--height", type=int, default=600)
+guiParser.add_argument("--full-topology", action="store_true", default=False)
 
 args = parser.parse_args()
 

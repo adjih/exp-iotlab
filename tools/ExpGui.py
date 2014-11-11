@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# 
+# Experiment GUI 
 #
 # Cedric Adjih - Inria - 2014
 #---------------------------------------------------------------------------
@@ -27,6 +27,7 @@ import os
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,0)
 
 DisplayHack = True
+#DisplayHack = False
 
 #---------------------------------------------------------------------------
 
@@ -39,9 +40,10 @@ def findClosest(screenPosList, xy):
 #---------------------------------------------------------------------------
 
 class ExpModel:
-    def __init__(self, iotlab, exp):
+    def __init__(self, iotlab, exp, args):
         self.iotlab = iotlab
         self.exp = exp
+        self.args = args
         self.view = None
         self.updateInfo()
         self.groupManager = IotlabHelper.GroupManager()
@@ -90,7 +92,7 @@ class ExpModel:
                                           info["x"], info["y"], info["z"])
                        and info["state"] in ("Alive", "Busy")]
 
-        if DisplayHack:
+        if not self.args.full_topology:
             nodePosList = [(extractNodeId(info["network_address"]), 
                             (-float(info["y"]), float(info["x"]), float(info["z"])))
                            for info in siteInfo
@@ -102,8 +104,10 @@ class ExpModel:
 
         expInfo = self.exp.getPersistentInfo()
 
-        self.sshTunnelByType = IotlabHelper.fromJson(self.exp.readFile(
-                "ssh-forward-port.json"))
+        if self.exp.hasFile("ssh-forward-port.json"):
+            self.sshTunnelByType = IotlabHelper.fromJson(self.exp.readFile(
+                    "ssh-forward-port.json"))
+        else: self.sshTunnelByType = {}
 
         self.portOfNode = {}
         for nodeAndPortList in self.sshTunnelByType.values():
@@ -153,7 +157,7 @@ class ExpModel:
                     print "(cannot find node %s)" % nodeId
                     continue
                 x,y,z = self.posOfNode[nodeId]
-                if DisplayHack and x > 21.85:
+                if not self.args.full_topology and x > 21.85:
                     continue
                 sx,sy = 4.5, 3.0
                 ox,oy = -60,-30
@@ -509,7 +513,7 @@ class ExpViewController:
         posOfNode = self.model.posOfNode
         self.xPosMin, self.xPosMax = self.model.xPosMin, self.model.xPosMax
         self.yPosMin, self.yPosMax = self.model.yPosMin, self.model.yPosMax
-        if DisplayHack: self.yPosMax = 21.85
+        if not self.model.args.full_topology: self.yPosMax = 21.85
         typeOfNode = dict(
             [(node, typeName) 
              for (typeName, nodeList) in self.model.nodeOfType.iteritems()
@@ -530,7 +534,7 @@ class ExpViewController:
         self.viewNodeList = []
 
         for nodeId, (xPos, yPos, zPos) in posOfNode.iteritems():
-            if DisplayHack and yPos > 21.85:
+            if not self.model.args.full_topology and yPos > 21.85:
                 continue
             xx,yy = self.posToScreen(xPos,yPos)
             color = (127,127,255)
@@ -549,65 +553,12 @@ class ExpViewController:
 
 #---------------------------------------------------------------------------
 
-def runGui(iotlab, exp):
-    xSize = 800
-    ySize = 600
+def runGui(iotlab, exp, args):
+    xSize = args.width
+    ySize = args.height
 
-    model = ExpModel(iotlab, exp)
+    model = ExpModel(iotlab, exp, args)
     application = ExpViewController(xSize, ySize, model)
     application.loop()
-
-#---------------------------------------------------------------------------
-
-while False:
-    time.sleep(0.1)
-    screen.fill((255,255,255))
-
-        
-    while True:        
-        event = pygame.event.poll()
-        if event.type == pygame.NOEVENT:
-            break
-        
-        elif event.type == MOUSEBUTTONDOWN:
-            if event.button == 1:
-                previous = targetNode
-                targetNode = findClosest(screenPosList, event.pos)
-                if previous == targetNode: targetNode = -1                
-                print "Node %d" % targetNode
-            elif event.button == 4: currentSimTime += 1
-            elif event.button == 5: currentSimTime -= 1                
-            else: print "event", dir(event)
-            
-        elif event.type  == QUIT:
-            print "<quitting>"
-            sys.exit()
-            
-        elif event.type == KEYDOWN:
-            #print event.mod, K_LCTRL
-            if event.mod & KMOD_CTRL != 0: amount = 5.0
-            elif event.mod & KMOD_SHIFT != 0: amount = 0.2
-            else: amount = 1.0
-            
-            if event.key == ord('q'): print "<quitting>" ; sys.exit()
-            elif event.key == ord('r'): mode = "rate" ; break
-            elif event.key == ord('d'): mode = "dim" ; break
-            elif event.key == ord('i'): mode = "innov" ; break
-            elif event.key == ord('g'): mode = "gap" ; break            
-            elif event.key == ord('/'): timeStep = - timeStep ; break
-            elif event.key == ord(' '): withPause = not withPause ; break
-            elif event.unicode == u'+': dotScale += 1 ; break
-            elif event.unicode == u'-': dotScale -= 1 ; break
-            elif event.unicode == u'=': dotScale  = 0 ; break
-            elif event.key == K_HOME: currentSimTime = 0 ; break
-            elif event.key == K_END: currentSimTime = nbTime-1 ; break
-            elif event.key == K_LEFT: currentSimTime -= amount ; break
-            elif event.key == K_RIGHT: currentSimTime += amount ; break
-            else: print event, dir(event)
-        #else: print event, dir(event)
-
-    pygame.display.flip()
-    #pygame.draw.circle(screen, color, (int(xx), int(yy)), nodeSize, 0)
-    #screenPosList.append((xx,yy,nodeId))
 
 #---------------------------------------------------------------------------

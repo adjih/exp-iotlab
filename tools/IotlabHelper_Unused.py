@@ -376,3 +376,58 @@ info["scenario"] = scenarioInfo
 #processManager.startSubProcessInTerm("ssh Tunnel to IoT-LAB", sshTunnelCommand)
 
 #---------------------------------------------------------------------------
+
+#---------------------------------------------------------------------------
+
+while False:
+    time.sleep(0.1)
+    screen.fill((255,255,255))
+
+        
+    while True:        
+        event = pygame.event.poll()
+        if event.type == pygame.NOEVENT:
+            break
+        
+        elif event.type == MOUSEBUTTONDOWN:
+            if event.button == 1:
+                previous = targetNode
+                targetNode = findClosest(screenPosList, event.pos)
+                if previous == targetNode: targetNode = -1                
+                print "Node %d" % targetNode
+            elif event.button == 4: currentSimTime += 1
+            elif event.button == 5: currentSimTime -= 1                
+            else: print "event", dir(event)
+            
+        elif event.type  == QUIT:
+            print "<quitting>"
+            sys.exit()
+            
+        elif event.type == KEYDOWN:
+            #print event.mod, K_LCTRL
+            if event.mod & KMOD_CTRL != 0: amount = 5.0
+            elif event.mod & KMOD_SHIFT != 0: amount = 0.2
+            else: amount = 1.0
+            
+            if event.key == ord('q'): print "<quitting>" ; sys.exit()
+            elif event.key == ord('r'): mode = "rate" ; break
+            elif event.key == ord('d'): mode = "dim" ; break
+            elif event.key == ord('i'): mode = "innov" ; break
+            elif event.key == ord('g'): mode = "gap" ; break            
+            elif event.key == ord('/'): timeStep = - timeStep ; break
+            elif event.key == ord(' '): withPause = not withPause ; break
+            elif event.unicode == u'+': dotScale += 1 ; break
+            elif event.unicode == u'-': dotScale -= 1 ; break
+            elif event.unicode == u'=': dotScale  = 0 ; break
+            elif event.key == K_HOME: currentSimTime = 0 ; break
+            elif event.key == K_END: currentSimTime = nbTime-1 ; break
+            elif event.key == K_LEFT: currentSimTime -= amount ; break
+            elif event.key == K_RIGHT: currentSimTime += amount ; break
+            else: print event, dir(event)
+        #else: print event, dir(event)
+
+    pygame.display.flip()
+    #pygame.draw.circle(screen, color, (int(xx), int(yy)), nodeSize, 0)
+    #screenPosList.append((xx,yy,nodeId))
+
+#---------------------------------------------------------------------------

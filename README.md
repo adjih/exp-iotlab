@@ -22,7 +22,7 @@ The steps:
 
   * [Launching an experiment with OpenWSN](README-OpenWSN.md)
 
-  * [Launching an RPL experiment with Contiki and RPL](README-Contiki.md) 
+  * [Launching an RPL experiment with Contiki](README-Contiki.md) 
     * This is based on IoT-LAB tutorials: 
       * [Contiki IPv6 stack and tools](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/)
       * [HOWTO use Foren6 to diagnose in realtime your 6LoWPAN experiment](https://github.com/iot-lab/iot-lab/wiki/HOWTO-use-Foren6-to-diagnose-in-realtime-your-6LoWPAN-experiment)
