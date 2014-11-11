@@ -9,7 +9,14 @@ please refer to these pages to really understand what is happening.
 
 
 
-1) Start by re
+## Start by reserving IoT-LAB nodes.
+
+
+You can reserve the nodes either automatically with the script or externally:
+if an experiment is currently running, the script will reuse it.
+
+* Automatically with the scripts: you need to specify the parameters of
+  the experiments
 
 ```
 cd tools
@@ -24,9 +31,17 @@ flashed according to instructions of the command line:
 - the remaining nodes will be flashed with "default" firmware (without radio,
   actually: [example_event](https://github.com/hikob/openlab/tree/master/appli/examples/event) from IoT-LAB/openlab).
 
-Note that if an experiment is currently running, the script will reuse it.
+* Externally:
+   through [IoT-LAB portal](https://www.iot-lab.info), or through
+   [command line tools](https://www.iot-lab.info/tutorials/experiment-cli-client/). Then you only need to specify the number of sniffers
+```
+cd tools
+./expctl init ExpContikiRpl.py  --nb-foren6-sniffers 2 
+```
 
-8) Run the gui launcher
+
+
+## Run the gui launcher
 ```
 python TkExp.py
 ```
