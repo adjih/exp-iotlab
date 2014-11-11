@@ -851,21 +851,22 @@ generic-exp-deps: \
 
 #---------------------------------------------------------------------------
 
-contiki-exp-deps: rpl-exp-deps
-
-rpl-exp-deps: \
+contiki-rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
    generic-exp-deps
 
 #ensure-pkg-wireshark ensure-pkg-paramiko
 
-run-rpl-experiment: rpl-exp-deps
-	cd tools && python ExpRpl.py --site grenoble --nb 10
+run-contiki-rpl-exp: contiki-rpl-exp-deps
+	cd tools && python ExpContikiRpl.py --site grenoble --nb 10
 
 #---------------------------------------------------------------------------
 
 riot-rpl-exp-deps: \
    generic-exp-deps 
+
+run-riot-rpl-exp: riot-rpl-exp-deps
+	cd tools && python ExpRiotRpl.py --site grenoble --nb 16 --with-sniffer
 
 #---------------------------------------------------------------------------
 
@@ -875,6 +876,6 @@ openwsn-exp-deps: \
 
 #---------------------------------------------------------------------------
 
-all-exp-deps: openwsn-exp-deps rpl-exp-deps riot-exp-deps
+all-exp-deps: openwsn-exp-deps contiki-rpl-exp-deps riot-rpl-exp-deps
 
 #---------------------------------------------------------------------------

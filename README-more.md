@@ -19,10 +19,10 @@ For more automation, two parts are added (really a byproduct):
 # Experiments
 
 Currently, there is one script that evolved in integrating multiple
-functionalities. It is: "tools/ExpRpl.py"
+functionalities. It is: "tools/ExpContikiRpl.py"
 
 ```
-usage: ExpRpl.py [-h] [--name NAME] [--site SITE] [--nb-nodes NBNODES]
+usage: ExpContikiRpl.py [-h] [--name NAME] [--site SITE] [--nb-nodes NBNODES]
                  [--duration DURATION] [--dev DEV]
                  [--nb-foren6-sniffers NBFOREN6SNIFFERS]
                  [--nb-zep-sniffers NBZEPSNIFFERS]

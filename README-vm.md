@@ -21,7 +21,7 @@ cd exp-iotlab/tools/system && sudo ./update-schroot-dist.sh really-update extra
 ```
 make all-exp-deps USE_DEMO_REPO=yes
 ```
-(if you plan to do experiments with only one of RIOT, OpenWSN or Contiki: you can use ```riot-exp-deps```, ```openwsn-exp-deps``` or ```contiki-exp-deps``` instead of ```all-exp-deps``` to compile a subset). The option USE_DEMO_REPO will use in some case(s), fork(s) of repositories with minor modifications, instead of main repositories.
+(if you plan to do experiments with only one of RIOT, OpenWSN or Contiki: you can use ```riot-rpl-exp-deps```, ```openwsn-exp-deps``` or ```contiki-rpl-exp-deps``` instead of ```all-exp-deps``` to compile a subset). The option USE_DEMO_REPO will use in some case(s), fork(s) of repositories with minor modifications, instead of main repositories.
 
 5) Configure properly your ssh access to IoT-LAB sites.
 Generate/use a ssh key documented in [ssh IoT-LAB tutorial](https://www.iot-lab.info/tutorials/configure-your-ssh-access/)

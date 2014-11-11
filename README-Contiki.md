@@ -1,18 +1,19 @@
 # Launching an experiment with Contiki and RPL
 
-(this was demonstrated at 
-IETF 90 [LLN Plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90_toronto_plugfest) and [Bits-N-Bites](http://www.ietf.org/meeting/90/ietf-90-bits-n-bites.html) at Toronto).
-
 It is assumed here that you have a running VM as described in
 [Installing a VM with all software and tools](README-vm.md).
 
 The experiment is essentially the one described by
-IoT-LAB tutorial for [contiki IPv6 stack and tools](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/), refer to this page to really understand
-what is happening :)
+IoT-LAB tutorial for [contiki IPv6 stack and tools](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/), with [HOWTO use Foren6 to diagnose in realtime your 6LoWPAN experiment](https://github.com/iot-lab/iot-lab/wiki/HOWTO-use-Foren6-to-diagnose-in-realtime-your-6LoWPAN-experiment),
+please refer to these pages to really understand what is happening.
+
+
+
+1) Start by re
 
 ```
 cd tools
-./expctl init ExpRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20
+./expctl init ExpContikiRpl.py --site strasbourg --nb-nodes 8 --nb-foren6-sniffers 2 --duration 20
 ```
 This will start an experiment of duration 20 minutes,
 with 8 nodes at the site of "strasbourg",
