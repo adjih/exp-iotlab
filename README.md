@@ -14,11 +14,11 @@ The idea is to be as simple as possible. The steps:
 
 2) Automatically launch one of the following experiments:
   
-  * [Run a RIOT Experiment](README-RIOT.md)
+  * [Launching an experiment with RIOT](README-RIOT.md)
 
-  * [Run a OpenWSN Experiment](README-OpenWSN.md)
+  * [Launching an experiment with OpenWSN](README-OpenWSN.md)
 
-  * [Run a Contiki RPL Experiment](README-Contiki.md) (this was demonstrated at 
+  * [Launching an experiment with Contiki and RPL](README-Contiki.md) (this was demonstrated at 
 IETF 90 [LLN Plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90_toronto_plugfest) and [Bits-N-Bites](http://www.ietf.org/meeting/90/ietf-90-bits-n-bites.html) at Toronto).
 
 ---------------------------------------------------------------------------
