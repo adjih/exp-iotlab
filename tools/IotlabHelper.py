@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------
 
 import sys, argparse, pprint, os, time, random
-import json, subprocess, re
+import json, subprocess, re, warnings
 sys.path.append("../iot-lab/parts/cli-tools")
 
 from iotlabcli import rest, helpers, experiment
@@ -221,7 +221,7 @@ class IotlabExp:
             startTime = time.time()
             partResult = self.doNodeCmd("update", partNodeList, firmwareData)
             stopTime = time.time()
-            sys.stdout.write("->%d]" % int(stopTime-startTime))
+            sys.stdout.write("->%dsec]" % int(stopTime-startTime))
             result = concatDict(result, partResult)
 
         result = concatDict(result, { u"1": removedNodeList })
@@ -232,7 +232,8 @@ class IotlabExp:
                        verbose=True, shouldTryOnce=False):
         """Flash nodes until the exact number `nodeCount' is successfully 
         flashed. Nodes are flashed in the order of `initialNodeList'.
-        If `nodeCount' is None, all nodes are flashed, and only once."""
+        If `nodeCount' is AllPossibleNodes, all nodes are flashed, 
+        and only once."""
         if nodeCount == 0:
             return [], initialNodeList[:]
         
@@ -241,21 +242,26 @@ class IotlabExp:
         flashedNodeList = []
         if verbose:
             print "- flashing %s node(s) with '%s'"%(nodeCount,firmwareFileName)
-        assert nodeCount > 0
+        assert nodeCount == AllPossibleNodes or nodeCount > 0
         firmwareData = readFile(firmwareFileName)
         if nodeCount == AllPossibleNodes:
             nodeCount = len(nodeList)
             tryOnce = True
         else: tryOnce = shouldTryOnce
 
+        if nodeCount > len(nodeList):
+            nodeCount = len(nodeList)
+ 
         while nodeCount > 0:
             countDown -= 1
             if countDown == 0: # don't flash forever
                 raise RuntimeError("Too many flash attempts")
             if nodeCount > len(nodeList):
                 print nodeCount, len(nodeList), nodeList, firmwareFileName
-                raise RuntimeError("Not enough available nodes in experiment", 
-                                   (nodeList, nodeCount))
+                #raise RuntimeError("Not enough available nodes in experiment", 
+                #                   (nodeList, nodeCount))
+                warnings.warn("Not enough available nodes in experiment")
+                break
             tentativeNodeList = nodeList[:nodeCount]
             nodeList = nodeList[nodeCount:]
             if verbose:
@@ -266,9 +272,11 @@ class IotlabExp:
             successfulNodeList = result.get('0', [])
             failedNodeList = result.get('1', [])
             if verbose:
+                successStr = reprNodeList(successfulNodeList)
+                failureStr = reprNodeList(failedNodeList)
                 print " success=%s failure=%s" % (
-                    reprNodeList(successfulNodeList),
-                    reprNodeList(failedNodeList))
+                    successStr if successStr else "none",
+                    failureStr if failureStr else "none")
             flashedNodeList.extend(successfulNodeList)
             nodeCount -= len(successfulNodeList)
             if tryOnce:
@@ -295,7 +303,8 @@ TypeToFirmware = {
     "contiki-border-router":
         "../iot-lab/parts/contiki/examples/ipv6/rpl-border-router/border-router.iotlab-m3",
     "riot":
-        "XXX",
+        "../riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf",
+        #"../riot/RIOT/examples/default/bin/iot-lab_M3/default.elf",
     "openwsn":
         "../openwsn/openwsn-fw/projects/common/03oos_openwsn_prog",
     "openwsn-sink":
@@ -303,10 +312,6 @@ TypeToFirmware = {
     "hipera": # (an in-house stack)
         "/home/user/HgRep/hipera/platform/freertos/openlab-hiper/build/bin/test_hipera.elf"
 }
-
-
-#SnifferFwFileName = "PreCompiled/foren6_sniffer.elf"
-# TunslipBinFileName = "sudo ../local/bin/tunslip6 aaaa::1/64 -L -a localhost -p 2000"
 
 #--------------------------------------------------
 
@@ -437,8 +442,11 @@ class IotlabPersistentExp(IotlabExp):
         flashedNodeList, currentNodeList = self.safeFlashNodes(
             firmwareFileName, nodeCount, initialNodeList)
 
-        assert (nodeCount == AllPossibleNodes 
-                or len(flashedNodeList) == nodeCount)
+        if not (nodeCount == AllPossibleNodes 
+                or len(flashedNodeList) == nodeCount):
+            warnings.warn("could not flash all required nodes")
+        #assert (nodeCount == AllPossibleNodes 
+        #        or len(flashedNodeList) == nodeCount)
         self.recordFlashedNodes(nodeTypeName, flashedNodeList, 
                                 firmwareFileName)
 

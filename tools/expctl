@@ -55,7 +55,7 @@ def getProcessManager(exp):
 #---------------------------------------------------------------------------
 
 ForwardedTypeList = ["contiki-border-router", "zep-sniffer", "foren6-sniffer",
-                     "openwsn", "openwsn-sink"]
+                     "openwsn", "openwsn-sink", "riot"]
 
 def cmdSshForward(args):
     iotlab, exp = getHelperAndExp(args)
@@ -89,7 +89,7 @@ def cmdSshForward(args):
  
     expServer = IotlabHelper.getExpUniqueServer(exp, nodes)
     #cmd = "echo FORWARDING PORTS ; TERM=xterm watch -t 'date +ssh_port_forward///%c' ; sleep 600000"
-    cmd = "echo FORWARDING PORTS; sleep 600000"
+    cmd = "echo FORWARDING PORTS \(through ssh, for use by other programs\)...; sleep 600000"
     sshRedirectPortStr = " ".join(redirectList)
     sshSnifferTunnelCommand = "ssh -T %s@%s %s '%s'" % (
         iotlab.userName, expServer, sshRedirectPortStr, cmd)

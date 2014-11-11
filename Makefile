@@ -679,7 +679,7 @@ dbg-tunslip:
 #---------------------------------------------------------------------------
 
 help:
-	@echo "Read the README.md, Makefile.defs, Makefile, sorry"
+	@echo "-> Please read the README.md, Makefile.defs, Makefile"
 	@echo "or type: xdg-open https://github.com/adjih/exp-iotlab/blob/master/README.md"
 
 local:
@@ -850,6 +850,8 @@ generic-exp-deps: \
    ensure-openlab-example-m3
 
 #---------------------------------------------------------------------------
+
+contiki-exp-deps: rpl-exp-deps
 
 rpl-exp-deps: \
    ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \

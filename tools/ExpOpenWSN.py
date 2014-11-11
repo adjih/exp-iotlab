@@ -23,8 +23,6 @@ args = parser.parse_args()
 iotlabHelper, exp = IotlabHelper.ensureExperimentFromArgs(args)
 exp.makeLastSymLink() # XXX: cannot run multiple simultaneous exp. with this
 
-#exp.resetPersistentInfo()
-
 #--------------------------------------------------
 # Flash nodes
 #--------------------------------------------------
@@ -41,7 +39,6 @@ currentNodeList = IotlabHelper.sortNodeByPriority(
 
 OpenWSNRouterFwFileName = "../openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog"
 
-print os.getcwd()
 borderRouterList, currentNodeList = exp.ensureFlashedNodes(
     "openwsn-sink", OpenWSNRouterFwFileName, 1, currentNodeList)
 print borderRouterList

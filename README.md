@@ -23,7 +23,7 @@ IETF 90 [LLN Plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90
 
 ---------------------------------------------------------------------------
 
-Note: this is a personnal contribution: real IoT-LAB tools are can be
+Note: this is a personnal contribution: real IoT-LAB tools can be
 found on main [FIT IoT-LaB site](https://www.iot-lab.info),
 on FIT IoT-LAB [github site](https://github.com/iot-lab/iot-lab)
 and [wiki](https://github.com/iot-lab/iot-lab). This is *work in progress*.

@@ -8,7 +8,7 @@
 # [Jul2014] 
 #    Parts copied from GETRF-color/code/ColoringStat.py
 #  and also,
-#    parts copied from Nc/src/drawFlowAnim.py, itself with parts from:
+#    parts copied from nc/src/drawFlowAnim.py, itself with parts from:
 # [Aug2007] Parts copied from OOLSR/simul/simulDisplay.py
 #---------------------------------------------------------------------------
 
@@ -101,6 +101,15 @@ class ExpModel:
 
 
         expInfo = self.exp.getPersistentInfo()
+
+        self.sshTunnelByType = IotlabHelper.fromJson(self.exp.readFile(
+                "ssh-forward-port.json"))
+
+        self.portOfNode = {}
+        for nodeAndPortList in self.sshTunnelByType.values():
+            for (address, port) in nodeAndPortList:
+                self.portOfNode[extractNodeId(address)] = port
+
         nodeInfoByType = expInfo["nodeInfoByType"]
         #print nodeInfoByType.get("contiki-rpl-node")
 
@@ -331,6 +340,21 @@ class ExpViewController:
         os.system("roxterm --fork -T '%s' -n '%s' -e bash -c '%s ; sleep 10'"
                   % (title1, title2, cmd))
 
+    def cmdPytermLastNode(self, interval = 1):
+        if self.lastNodeId == None:
+            print "<no last node>"
+            return
+        title1 = "Node %s" % self.lastNodeId
+        title2 = title1
+        port = self.model.portOfNode.get(self.lastNodeId, None) 
+        if port == None:
+            print "<no TCP port>"
+            return
+        cmd = "../riot/RIOT/dist/tools/pyterm/pyterm -ts localhost:%s" % port
+        os.system("roxterm --fork -T '%s' -n '%s' -e bash -c '%s ; sleep 10'"
+                  % (title1, title2, cmd))
+
+
     def selectGroup(self):
         if self.currentGroup == None:
             print "<no group>"
@@ -409,6 +433,9 @@ class ExpViewController:
                         if event.mod & pygame.KMOD_ALT != 0:
                             self.cmdPingLastNode(10)
                         else: self.cmdPingLastNode()
+                    elif event.key == pygame.K_t:
+                        self.cmdPytermLastNode()
+
 
                     elif event.unicode == u'[':
                         self.updateCurrentGroup(-1)
@@ -496,7 +523,8 @@ class ExpViewController:
             "contiki-border-router": (0,255,0),
             "openwsn": (0,0,127),
             "openwsn-sink": (0,255,255),
-            "hipera": (127,255,127)
+            "hipera": (127,255,127),
+            "riot": (127,127,255)
             }
 
         self.viewNodeList = []
