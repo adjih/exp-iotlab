@@ -337,9 +337,7 @@ ensure-riot: riot riot/RIOT riot/riot.defs
 riot/riot.defs: Makefile
 	(echo "# Automagically generated" ; \
 	echo "BOARD=iot-lab_M3" ; \
-	echo "RIOTCPU=${CURDIR}/riot/thirdparty_cpu" ; \
-	echo "RIOTBOARD=${CURDIR}/riot/thirdparty_boards" ; \
-	echo "export BOARD RIOTCPU RIOTBOARD") > $@
+	echo "export BOARD") > $@
 
 riot:
 	mkdir riot
@@ -348,43 +346,57 @@ riot/RIOT:
 	make riot
 	git clone ${GIT_RIOT} riot/RIOT
 
-ensure-riot-board: riot/thirdparty_boards
+ensure-riot-tv: riot/Riot-TV
 
-riot/thirdparty_boards:
+riot/Riot-TV:
 	make ensure-riot
-	git clone ${GIT_RIOT_BOARD} riot/thirdparty_boards
-	cd riot/thirdparty_boards/iot-lab_M3/include \
-        && mv board.h board.h-orig \
-        && sed s/115200/500000/g < board.h-orig > board.h
+	git clone ${GIT_RIOT_TV} $@
 
-ensure-riot-cpu: riot/thirdparty_cpu
+ensure-riot-applications: riot/applications
 
-riot/thirdparty_cpu:
+riot/applications:
 	make ensure-riot
-	git clone ${GIT_RIOT_CPU} riot/thirdparty_cpu
-	cd riot/thirdparty_cpu \
-	&& git checkout -b thomaseichinger-fix_stm32f1 master \
-	&& git pull --no-edit git@github.com:thomaseichinger/thirdparty_cpu.git fix_stm32f1
+	git clone ${GIT_RIOT_APPLICATIONS} $@
 
-ensure-all-riot: ensure-riot ensure-riot-board ensure-riot-cpu
+ensure-all-riot: ensure-riot ensure-riot-tv ensure-riot-applications
 
 ensure-riot-build-deps: \
    ensure-all-riot ensure-gcc-arm ensure-local-profile
 
-build-riot-helloworld: ensure-riot-build-deps 
+
+build-riot-hello-world: ensure-riot-build-deps 
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/hello-world && make
 
 build-riot-rpl-udp: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/rpl_udp && make
 
-ensure-riot-defaultprog: \
-    riot/RIOT/examples/default/bin/iot-lab_M3/default.elf
+build-riot-default: ensure-riot-build-deps
+	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
+
 
 riot/RIOT/examples/default/bin/iot-lab_M3/default.elf:
-	make build-riot-defaultprog
+	make build-riot-default
 
-build-riot-defaultprog: ensure-riot-build-deps
-	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
+riot/RIOT/examples/hello-world/bin/iot-lab_M3/hello-world.elf:
+	make build-riot-hello-world
+
+riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf:
+	make build-riot-rpl-udp
+
+
+ensure-riot-default: \
+    riot/RIOT/examples/default/bin/iot-lab_M3/default.elf
+
+ensure-riot-hello-world: \
+    riot/RIOT/examples/hello-world/bin/iot-lab_M3/hello-world.elf
+
+ensure-riot-rpl_udp: \
+    riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf
+
+
+ensure-riot-examples-m3: ensure-riot-default \
+         ensure-riot-hello-world \
+         ensure-riot-rpl_udp
 
 #===========================================================================
 #===========================================================================
@@ -832,11 +844,16 @@ ${HOME}/.iotlabrc:
 
 #---------------------------------------------------------------------------
 
-rpl-exp-deps: \
-   ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
+generic-exp-deps: \
    ensure-all-iot-lab \
    ensure-pkg-roxterm ensure-pkg-socat \
    ensure-openlab-example-m3
+
+#---------------------------------------------------------------------------
+
+rpl-exp-deps: \
+   ensure-contiki-rpl-samples ensure-sniffer-foren6 ensure-foren6-gui \
+   generic-exp-deps
 
 #ensure-pkg-wireshark ensure-pkg-paramiko
 
@@ -846,18 +863,16 @@ run-rpl-experiment: rpl-exp-deps
 #---------------------------------------------------------------------------
 
 riot-rpl-exp-deps: \
-   ensure-all-iot-lab
+   generic-exp-deps 
 
 #---------------------------------------------------------------------------
 
 openwsn-exp-deps: \
    ensure-openwsn-m3 ensure-openwsn-sink-m3 ensure-sniffer-foren6 \
-   ensure-all-iot-lab \
-   ensure-pkg-roxterm ensure-pkg-socat \
-   ensure-openlab-example-m3
+   generic-exp-deps
 
 #---------------------------------------------------------------------------
 
-all-exp-deps: openwsn-exp-deps rpl-exp-deps
+all-exp-deps: openwsn-exp-deps rpl-exp-deps riot-exp-deps
 
 #---------------------------------------------------------------------------

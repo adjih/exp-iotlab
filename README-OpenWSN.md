@@ -1,8 +1,8 @@
-
 # Launching an experiment with [OpenWSN](https://openwsn.atlassian.net/)
 
-Once the step of the previous section "Installing a VM with all software 
-and tools" have been followed,  you can start an experiment.
+After you have a running VM as indicated in
+[Installing a VM with all software and tools](README-vm.md),  you can start the OpenWSN experiments
+
 
 There are two ways to select nodes for an experiments:
 

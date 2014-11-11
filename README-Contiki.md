@@ -3,7 +3,8 @@
 (this was demonstrated at 
 IETF 90 [LLN Plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90_toronto_plugfest) and [Bits-N-Bites](http://www.ietf.org/meeting/90/ietf-90-bits-n-bites.html) at Toronto).
 
-Once the step of the previous section "Installing a VM with all software and tools" have been followed,  you can start an experiment.
+It is assumed here that you have a running VM as described in
+[Installing a VM with all software and tools](README-vm.md).
 
 The experiment is essentially the one described by
 IoT-LAB tutorial for [contiki IPv6 stack and tools](https://www.iot-lab.info/tutorials/contiki-ipv6-stack-and-tools/), refer to this page to really understand
