@@ -228,6 +228,44 @@ def cmdRiotTvAnchor(args):
 
 #---------------------------------------------------------------------------
 
+def cmdRiotTvLayout(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    nodePosTable = exp.getCachedAllNodePos()
+    expInfo = exp.getPersistentInfo()
+    
+    if args.type not in expInfo["nodeInfoByType"]:
+        print "(no nodes of type '%s')" % args.type
+        return
+
+    addressList = expInfo["nodeInfoByType"][args.type]["nodes"]
+    nodeIdList = [extractNodeId(address) for address in addressList]
+    LayoutFileName = "../riot/Riot-TV/anchor/data/current-layout.json"
+    try: os.remove(LayoutFileName)
+    except: pass
+
+    infoNodeList = []
+
+    for nodeId in nodeIdList:
+        if nodeId in nodePosTable:
+            x,y,z = nodePosTable[nodeId]
+            info = {
+                "id": "m3-%d" % nodeId, 
+                "params": { "color":"#ee2222", "size":15, "x":-y, "y":x} 
+                }
+            infoNodeList.append(info)
+
+    layout = {
+        "nodes": infoNodeList,
+        "edges": [ ]
+        }
+
+    f = open(LayoutFileName, "w") # XXX: make a link to here + change here
+    f.write(IotlabHelper.toJson(layout))
+    f.close()
+
+#---------------------------------------------------------------------------
+
 def cmdFlash(args):
     iotlab, exp = getHelperAndExp(args)
     expInfo = exp.getPersistentInfo()
@@ -258,6 +296,8 @@ def cmdFlash(args):
     else:
         exp.ensureFlashedNodes(os.path.basename(args.firmware), 
                                args.firmware, len(nodeList), nodeList)
+
+#---------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------
 # Special processing for "init": launch the Experiment script
@@ -335,6 +375,9 @@ webViewParser.add_argument("--no-browser", action="store_true", default=False)
 riotTvParser = subparsers.add_parser("riot-tv-anchor")
 riotTvParser.add_argument("--no-browser", action="store_true", default=False)
 
+riotTvLayoutParser = subparsers.add_parser("riot-tv-layout")
+riotTvLayoutParser.add_argument("--type", type=str, default="riot")
+
 args = parser.parse_args()
 
 if args.exp_id == None:
@@ -362,6 +405,8 @@ elif args.command == "web-view":
     cmdWebView(args)
 elif args.command == "riot-tv-anchor":
     cmdRiotTvAnchor(args)
+elif args.command == "riot-tv-layout":
+    cmdRiotTvLayout(args)
 elif args.command in nodeCmdParserTable:
     cmdNodeCmd(args)
 elif args.command in nodeTypeCmdParserTable:

@@ -474,6 +474,54 @@ class IotlabPersistentExp(IotlabExp):
         fw = TypeToFirmware[nodeTypeName]
         return self.ensureFlashedNodes(nodeTypeName, fw, nodeCount, nodeList)
 
+
+    #--------------------------------------------------
+    #
+    #--------------------------------------------------
+
+    def getCachedNodeList(self, shouldClearCache = False):
+        CacheNodeList = "cache-node-list-info.json"
+        if self.hasFile(CacheNodeList) and not shouldClearCache:
+            expNodeList = fromJson(self.readFile(CacheNodeList))
+        else:
+            expNodeList = self.getNodeList()
+            self.writeFile(CacheNodeList, toJson(expNodeList))
+        return expNodeList
+
+    def getCachedExpServer(self, shouldClearCache = False):
+        return self.getCachedResourceInfo(shouldClearCache)[0]
+
+    def getCachedResource(self, shouldClearCache = False):
+        return self.getCachedResourceInfo(shouldClearCache)[2]
+        
+    def getCachedResourceInfo(self, shouldClearCache = False):
+        CacheResource = "cache-resource-info.json" # XXX: move
+
+        if self.hasFile(CacheResource):
+            return fromJson(self.readFile(CacheResource))
+
+        expNodeList = self.getCachedNodeList(shouldClearCache)
+        expServer = getExpUniqueServer(self, expNodeList)
+        expServer = expServer.split(".")[0]
+        serverInfo = self.helper.getResources(expServer)
+
+        info = [expServer, expNodeList, serverInfo]
+        self.writeFile(CacheResource, toJson(info))
+        return info
+
+    def getCachedAllNodePos(self, archi = "m3:at86rf231", 
+                         shouldClearCache = False):
+        (expServer, expNodeList, serverInfo 
+         ) = self.getCachedResourceInfo(shouldClearCache)
+        nodePosList = [(extractNodeId(info["network_address"]), 
+                        (float(info["x"]), float(info["y"]), float(info["z"])))
+                       for info in serverInfo
+                       if info["archi"] == archi 
+                       and "null" not in (info["network_address"],
+                                          info["x"], info["y"], info["z"])
+                       and info["state"] in ("Alive", "Busy")]
+        return dict(nodePosList)
+
 #--------------------------------------------------
 # Standard firmware (sniffer)
 
