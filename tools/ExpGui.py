@@ -354,7 +354,7 @@ class ExpViewController:
         if port == None:
             print "<no TCP port>"
             return
-        cmd = "../riot/RIOT/dist/tools/pyterm/pyterm -ts localhost:%s" % port
+        cmd = "../riot/RIOT/dist/tools/pyterm/pyterm -ts %s" % port
         os.system("roxterm --fork -T '%s' -n '%s' -e bash -c '%s ; sleep 10'"
                   % (title1, title2, cmd))
 
@@ -439,7 +439,8 @@ class ExpViewController:
                         else: self.cmdPingLastNode()
                     elif event.key == pygame.K_t:
                         self.cmdPytermLastNode()
-
+                    elif event.key == pygame.K_h:
+                        self.showHelp()
 
                     elif event.unicode == u'[':
                         self.updateCurrentGroup(-1)

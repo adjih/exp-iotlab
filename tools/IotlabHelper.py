@@ -304,6 +304,8 @@ TypeToFirmware = {
         "../iot-lab/parts/contiki/examples/ipv6/rpl-border-router/border-router.iotlab-m3",
     "riot":
         "../riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf",
+    "riot":
+        "../riot/RIOT-viz/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf",
         #"../riot/RIOT/examples/default/bin/iot-lab_M3/default.elf",
     "openwsn":
         "../openwsn/openwsn-fw/projects/common/03oos_openwsn_prog",

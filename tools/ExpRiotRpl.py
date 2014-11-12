@@ -27,7 +27,9 @@ exp.makeLastSymLink() # XXX: cannot run multiple simultaneous exp. with this
 #---------------------------------------------------------------------------
 
 #RiotFirmwareFileName = "../riot/RIOT/examples/default/bin/iot-lab_M3/default.elf"
-RiotFirmwareFileName = "../riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf"
+#RiotFirmwareFileName = "../riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf"
+RiotFirmwareFileName = IotlabHelper.TypeToFirmware["riot"]
+
 
 nodeList = exp.getNodeList()
 currentNodeList = nodeList[:]

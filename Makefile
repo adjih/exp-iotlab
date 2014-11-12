@@ -334,6 +334,8 @@ USE_RIOT_DEFS=. ${CURDIR}/riot/riot.defs \
 
 ensure-riot: riot riot/RIOT riot/riot.defs
 
+ensure-riot-viz: riot/RIOT-viz
+
 riot/riot.defs: Makefile
 	(echo "# Automagically generated" ; \
 	echo "BOARD=iot-lab_M3" ; \
@@ -346,11 +348,33 @@ riot/RIOT:
 	make riot
 	git clone ${GIT_RIOT} riot/RIOT
 
-ensure-riot-tv: riot/Riot-TV
+#riot/RIOT-trace:
+#	make riot
+#	git clone ${GIT_RIOT} $@
+#	(cd $@ \
+#	&& git remote add oleg https://github.com/OlegHahm/RIOT \
+#	&& git fetch oleg \
+#	&& git cherry-pick a6f6a4ec8a1eaaee3022114dc037fd32052427a7 )
+
+riot/RIOT-viz:
+	make riot
+	git clone ${GIT_RIOT_VIZ} $@
+
+ensure-riot-tv: riot/Riot-TV \
+    riot/Riot-TV/anchor/node_modules riot/Riot-TV/reporter/node_modules
 
 riot/Riot-TV:
 	make ensure-riot
 	git clone ${GIT_RIOT_TV} $@
+
+riot/Riot-TV/anchor/node_modules:
+	make riot/Riot-TV
+	cd riot/Riot-TV/anchor/data && ln -s layout.json current-layout.json
+	cd riot/Riot-TV/anchor && npm install
+
+riot/Riot-TV/reporter/node_modules:
+	make riot/Riot-TV
+	cd riot/Riot-TV/reporter && npm install
 
 ensure-riot-applications: riot/applications
 
@@ -358,7 +382,8 @@ riot/applications:
 	make ensure-riot
 	git clone ${GIT_RIOT_APPLICATIONS} $@
 
-ensure-all-riot: ensure-riot ensure-riot-tv ensure-riot-applications
+ensure-all-riot: ensure-riot ensure-riot-tv ensure-riot-applications \
+                 ensure-riot-viz
 
 ensure-riot-build-deps: \
    ensure-all-riot ensure-gcc-arm ensure-local-profile
@@ -373,6 +398,10 @@ build-riot-rpl-udp: ensure-riot-build-deps
 build-riot-default: ensure-riot-build-deps
 	${USE_RIOT_DEFS} && cd riot/RIOT/examples/default && make
 
+build-riot-viz-rpl_udp: ensure-riot-build-deps
+	${USE_RIOT_DEFS} && cd riot/RIOT-viz/examples/rpl_udp && make
+
+
 
 riot/RIOT/examples/default/bin/iot-lab_M3/default.elf:
 	make build-riot-default
@@ -382,6 +411,9 @@ riot/RIOT/examples/hello-world/bin/iot-lab_M3/hello-world.elf:
 
 riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf:
 	make build-riot-rpl-udp
+
+riot/RIOT-viz/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf:
+	make build-riot-viz-rpl_udp
 
 
 ensure-riot-default: \
@@ -393,10 +425,14 @@ ensure-riot-hello-world: \
 ensure-riot-rpl_udp: \
     riot/RIOT/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf
 
+ensure-riot-viz-rpl_udp: \
+    riot/RIOT-viz/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf
+
 
 ensure-riot-examples-m3: ensure-riot-default \
          ensure-riot-hello-world \
-         ensure-riot-rpl_udp
+         ensure-riot-rpl_udp \
+         ensure-riot-viz-rpl_udp
 
 #===========================================================================
 #===========================================================================
@@ -668,6 +704,15 @@ dbg-tunslip:
 	sudo local/bin/tunslip6 -B 500000 -s `${DBGCLIENT} 0 print-tty` aaaa::1/64
 
 
+#---------------------------------------------------------------------------
+# grip
+#---------------------------------------------------------------------------
+
+run-grip: ensure-pkg-roxterm
+	DISPLAY=:0 roxterm -e grip
+	sleep 1 && xdg-open http://localhost:5000/
+
+
 #===========================================================================
 #===========================================================================
 # Local installation
@@ -863,10 +908,13 @@ run-contiki-rpl-exp: contiki-rpl-exp-deps
 #---------------------------------------------------------------------------
 
 riot-rpl-exp-deps: \
-   generic-exp-deps 
+   ensure-riot-rpl_udp ensure-riot-viz-rpl_udp \
+   ensure-sniffer-foren6 ensure-foren6-gui \
+   generic-exp-deps
 
 run-riot-rpl-exp: riot-rpl-exp-deps
 	cd tools && python ExpRiotRpl.py --site grenoble --nb 16 --with-sniffer
+
 
 #---------------------------------------------------------------------------
 

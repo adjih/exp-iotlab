@@ -35,12 +35,14 @@ GIT_IOTLAB_CONTIKI=https://github.com/iot-lab/contiki.git
 GIT_IOTLAB_WSN430=https://github.com/iot-lab/wsn430.git
 
 #--------------------------------------------------
-# Repositories from Riot-OS
+# Repositories for RIOT
 #--------------------------------------------------
 
 GIT_RIOT=https://github.com/RIOT-OS/RIOT.git
 GIT_RIOT_APPLICATIONS=https://github.com/RIOT-OS/applications
-GIT_RIOT_TV=https://github.com/RIOT-OS/Riot-TV
+#GIT_RIOT_TV=https://github.com/RIOT-OS/Riot-TV
+GIT_RIOT_VIZ=https://github.com/adjih/RIOT.git -b riot-tv
+GIT_RIOT_TV=https://github.com/adjih/Riot-TV.git -b exp-iotlab
 
 #GIT_RIOT=https://github.com/RIOT-OS/RIOT.git
 #GIT_RIOT_BOARD=https://github.com/RIOT-OS/thirdparty_boards.git

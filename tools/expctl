@@ -12,15 +12,15 @@ import warnings
 #thisDirName = os.path.dirname(thisScriptPath)
 #sys.path.append(thisDirName) # XXX: be cleaner
 
+import webbrowser
 import argparse
 import IotlabHelper
 from IotlabHelper import extractNodeId, AllPossibleNodes
 
 try: 
     import ExpGui # comment if pb and you don't need a GUI
-except: 
-    warnings.warn("could not 'import ExpGui', skipping it "
-                  +"(some operations will fail)")
+except ImportError: 
+    warnings.warn("could not 'import ExpGui', skipping it (some operations will fail)")
 
 #---------------------------------------------------------------------------
 # utils
@@ -47,7 +47,10 @@ def getHelperAndExp(args, server=None):
 
 def getProcessManager(exp):
     processManager = IotlabHelper.ProcessManager(False)
-    processManager.setWindowTitle(exp.getPersistentInfo()["name"])
+    if exp == None:
+        name = "Pre-Experiment"
+    else: name = exp.getPersistentInfo()["name"]
+    processManager.setWindowTitle(name)
     return processManager
 
 #---------------------------------------------------------------------------
@@ -146,6 +149,18 @@ def cmdForen6Sniffers(args):
     print "+", cmd
     processManager.startSubProcessInTerm("Foren6 sniffers", cmd)
 
+def cmdRiotTvReporters(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
+    borderRouterList = forwardByType.get("riot")
+    cmd = "./ConnectionTool.py connect --input riot-viz --output %s" % args.output
+    cmd += " --nodes " 
+    cmd += " ".join(["localhost:%s"%port for (node,port) in borderRouterList])
+    print "+", cmd
+    processManager.startSubProcessInTerm("Riot-TV Reporter", cmd)
+
+
 def cmdForen6(args):
     iotlab, exp = getHelperAndExp(args)
     processManager = getProcessManager(exp)
@@ -194,6 +209,22 @@ def cmdGui(args):
     if args.full_topology:
         ExpGui.DisplayHack = False # XXX: clean up
     ExpGui.runGui(iotlab, exp, args)
+
+#---------------------------------------------------------------------------
+
+def cmdWebView(args):
+    processManager = getProcessManager(None)
+    webViewCommand = "cd ../iot-lab/web-view && echo 'Running HTTP server from https://github.com/iot-lab/iot-lab/tree/master/web-view ' && ./httpd.py"
+    processManager.startSubProcessInTerm("web-view", webViewCommand)
+    webbrowser.open("http://localhost:8000/")
+
+#---------------------------------------------------------------------------
+
+def cmdRiotTvAnchor(args):
+    processManager = getProcessManager(None)
+    riotTvAnchorCommand = "cd ../riot/Riot-TV/anchor && echo 'Running HTTP anchor from RIOT-TV' && node anchor.js"
+    processManager.startSubProcessInTerm("Riot-TV anchor", riotTvAnchorCommand)
+    webbrowser.open("http://localhost:12345/")
 
 #---------------------------------------------------------------------------
 
@@ -298,6 +329,12 @@ guiParser.add_argument("--width", type=int, default=800)
 guiParser.add_argument("--height", type=int, default=600)
 guiParser.add_argument("--full-topology", action="store_true", default=False)
 
+webViewParser = subparsers.add_parser("web-view")
+webViewParser.add_argument("--no-browser", action="store_true", default=False)
+
+riotTvParser = subparsers.add_parser("riot-tv-anchor")
+riotTvParser.add_argument("--no-browser", action="store_true", default=False)
+
 args = parser.parse_args()
 
 if args.exp_id == None:
@@ -321,6 +358,10 @@ elif args.command == "foren6":
     cmdForen6(args)
 elif args.command == "gui":
     cmdGui(args)
+elif args.command == "web-view":
+    cmdWebView(args)
+elif args.command == "riot-tv-anchor":
+    cmdRiotTvAnchor(args)
 elif args.command in nodeCmdParserTable:
     cmdNodeCmd(args)
 elif args.command in nodeTypeCmdParserTable:
