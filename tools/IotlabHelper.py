@@ -807,7 +807,7 @@ class ProcessManager:
         self.windowTitle = windowTitle
 
     def startSubProcessInTerm(self, tabTitle, command, bgColor="White"):
-        command += " ; printf '<done>' ; sleep 10" # so that error can be seen
+        command += " ; printf '<done>' ; sleep 100" # so that errors can be seen
         if os.path.exists(self.ROXTerm):
             argList = [self.ROXTerm] 
             if self.isFirstTerm:

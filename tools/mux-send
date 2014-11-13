@@ -1,0 +1,38 @@
+#! /usr/bin/python
+#---------------------------------------------------------------------------
+# Cedric Adjih, Inria, 2014
+#---------------------------------------------------------------------------
+
+import socket, struct
+import argparse
+import ConnectionTool
+import IotlabHelper
+from ConnectionTool import addSizeHeader
+
+DefaultMuxPort = 19999
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--port", type=int, default=DefaultMuxPort)
+parser.add_argument("--socket-id", type=int, default=None)
+parser.add_argument("--name", type=str, default=None)
+parser.add_argument("--exclude", action="store_true", default=False)
+parser.add_argument("msgList", nargs="*")
+args = parser.parse_args()
+
+#subparsers = parser.add_subparsers(dest="command")
+#infoParser = subparsers.add_parser("info")
+
+sd = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sd.connect(("localhost", args.port))
+
+for data in args.msgList:
+    msg = {"type":"send", "data": data+"\n"}
+    if args.socket_id != None:
+        msg["socket-id"] = args.socket_id
+    if args.name != None:
+        msg["name"] = args.name
+    if args.exclude:
+        msg["exclude"] = True
+    sd.send(addSizeHeader(IotlabHelper.toJson(msg)))
+
+#---------------------------------------------------------------------------

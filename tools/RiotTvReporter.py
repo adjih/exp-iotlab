@@ -19,9 +19,6 @@ sd.connect(("localhost", AnchorPort))
 
 clock = 0
 
-
-
-
 def sendData(data):
     info = {'type': 'raw', 'data': data, 'time': clock}
     tmpData = json.dumps(info)
@@ -30,21 +27,26 @@ def sendData(data):
     sd.send(rawData)
 
 
-data = "p_s: ID sn10 selected ID sn11 as parent"
-sendData(data)
+#data = "p_s: ID sn10 selected ID sn11 as parent"
+#sendData(data)
 
-data = "p_s: ID sn12 selected ID sn11 as parent"
-sendData(data)
+#data = "p_s: ID sn12 selected ID sn11 as parent"
+#sendData(data)
 
-data = "p_s: ID sn12 selected ID sn14 as parent"
-sendData(data)
+#data = "p_s: ID sn12 selected ID sn14 as parent"
+#sendData(data)
 
 
-data = "r: ID sn10 selected rank 123"
-sendData(data)
+#data = "r: ID sn10 selected rank 123"
+#sendData(data)
 
-data = "m: ID sn11 received msg DIO from ID sn13 #color6"
-sendData(data)
+#data = "m: ID gw received msg TYPE_234 from ID sn11 #color8"
+#sendData(data)
 
-data = "m: ID gw received msg TYPE_234 from ID sn11 #color8"
+
+
+#data = "m: ID m3-78 received msg DIO from ID m3-188 #color1"
+#sendData(data)
+
+data = "d: ID m3-248 received event EID"
 sendData(data)

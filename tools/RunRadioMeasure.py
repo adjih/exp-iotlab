@@ -66,7 +66,8 @@ class RadioExperiment:
 
     def getLocalAddressList(self):
         localAddressList = [("localhost",localPort) 
-                            for (node,localPort) in self.nodeAndPortList]
+                            for (node,localPort) 
+                            in self.nodeAndPortList]
         return localAddressList
 
     #--------------------------------------------------

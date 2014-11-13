@@ -8,9 +8,17 @@ import sys, os
 import argparse
 
 parser = argparse.ArgumentParser()
-#parser.add_option("--mote-id", dest="moteId", action="store", default=0,
-#     type="int")
+parser.add_argument("--socket-id", type=int, default=0)
+parser.add_argument("--name", type=str, default=None)
 args = parser.parse_args()
+
+if args.name == None:
+    socketId = args.socket_id
+    moteSelect = "--socket-id %s" % args.socket_id
+    moteId = "@%s" % args.socket_id
+else:
+    moteSelect = "--name %s" % args.name
+    moteId = args.name
 
 CommandList = [    
     ("Remote Tunnel(s)", None),
@@ -27,7 +35,15 @@ CommandList = [
     ("wireshark", 'sudo wireshark -k -i lo -Y "zep" &'),
 
     ("RIOT", None),
-    ("riot-tv anchor", "./expctl riot-tv-anchor"),
+    ("riot-tv layout", "./expctl riot-tv layout"),
+    ("riot-tv anchor", "./expctl riot-tv anchor"),
+    ("riot-tv report", "./expctl riot-tv report"),
+    ("send reboot", "./mux-send reboot"),
+    ("send addr", "./mux-send addr"),
+    ("send [not %s] init-node" % moteId, 
+     "./mux-send --exclude %s 'init n'" %moteSelect),
+    ("send [%s] init-root" %moteId, 
+     "./mux-send %s 'init r'"%moteSelect),
     
     ("General", None),
     ("gui", "./expctl gui &"),

@@ -58,7 +58,7 @@ def getProcessManager(exp):
 #---------------------------------------------------------------------------
 
 ForwardedTypeList = ["contiki-border-router", "zep-sniffer", "foren6-sniffer",
-                     "openwsn", "openwsn-sink", "riot"]
+                     "openwsn", "openwsn-sink", "riot", "riot-viz"]
 
 def cmdSshForward(args):
     iotlab, exp = getHelperAndExp(args)
@@ -145,21 +145,10 @@ def cmdForen6Sniffers(args):
     borderRouterList = forwardByType.get("foren6-sniffer")
     cmd = "./ConnectionTool.py connect --input foren6 --output %s" % args.output
     cmd += " --nodes " 
-    cmd += " ".join(["localhost:%s"%port for (node,port) in borderRouterList])
+    cmd += " ".join(["localhost:%s:%s"%(port,node)
+                     for (node,port) in borderRouterList])
     print "+", cmd
     processManager.startSubProcessInTerm("Foren6 sniffers", cmd)
-
-def cmdRiotTvReporters(args):
-    iotlab, exp = getHelperAndExp(args)
-    processManager = getProcessManager(exp)
-    forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
-    borderRouterList = forwardByType.get("riot")
-    cmd = "./ConnectionTool.py connect --input riot-viz --output %s" % args.output
-    cmd += " --nodes " 
-    cmd += " ".join(["localhost:%s"%port for (node,port) in borderRouterList])
-    print "+", cmd
-    processManager.startSubProcessInTerm("Riot-TV Reporter", cmd)
-
 
 def cmdForen6(args):
     iotlab, exp = getHelperAndExp(args)
@@ -226,7 +215,19 @@ def cmdRiotTvAnchor(args):
     processManager.startSubProcessInTerm("Riot-TV anchor", riotTvAnchorCommand)
     webbrowser.open("http://localhost:12345/")
 
-#---------------------------------------------------------------------------
+
+def cmdRiotTvReport(args):
+    iotlab, exp = getHelperAndExp(args)
+    processManager = getProcessManager(exp)
+    forwardByType = IotlabHelper.fromJson(exp.readFile("ssh-forward-port.json"))
+    borderRouterList = forwardByType.get("riot")
+    #cmd = "./ConnectionTool.py connect --proxy --proxy-port-offset 10000  --input dump --output text" #% args.output
+    cmd = "./ConnectionTool.py connect --mux --mux-port 19999  --input line --output riot-tv-reporter"
+    cmd += " --nodes " 
+    cmd += " ".join(["localhost:%s:%s" % (port, node) 
+                     for (node, port) in borderRouterList])
+    print "+", cmd
+    processManager.startSubProcessInTerm("Riot-TV Report", cmd)
 
 def cmdRiotTvLayout(args):
     iotlab, exp = getHelperAndExp(args)
@@ -249,9 +250,11 @@ def cmdRiotTvLayout(args):
     for nodeId in nodeIdList:
         if nodeId in nodePosTable:
             x,y,z = nodePosTable[nodeId]
+            if args.swap_xy:
+                x,y = (-y,x)
             info = {
                 "id": "m3-%d" % nodeId, 
-                "params": { "color":"#ee2222", "size":15, "x":-y, "y":x} 
+                "params": { "color":"#ee2222", "size":15, "x":x, "y":y} 
                 }
             infoNodeList.append(info)
 
@@ -372,11 +375,20 @@ guiParser.add_argument("--full-topology", action="store_true", default=False)
 webViewParser = subparsers.add_parser("web-view")
 webViewParser.add_argument("--no-browser", action="store_true", default=False)
 
-riotTvParser = subparsers.add_parser("riot-tv-anchor")
+
+riotTvParser = subparsers.add_parser("riot-tv")
+riotTvSubParsers = riotTvParser.add_subparsers(dest="riotCommand")
+
+riotTvParser = riotTvSubParsers.add_parser("anchor")
 riotTvParser.add_argument("--no-browser", action="store_true", default=False)
 
-riotTvLayoutParser = subparsers.add_parser("riot-tv-layout")
+
+riotTvLayoutParser = riotTvSubParsers.add_parser("layout")
 riotTvLayoutParser.add_argument("--type", type=str, default="riot")
+riotTvLayoutParser.add_argument("--swap-xy", action="store_true", default=False)
+
+riotTvReportParser = riotTvSubParsers.add_parser("report")
+
 
 args = parser.parse_args()
 
@@ -403,10 +415,14 @@ elif args.command == "gui":
     cmdGui(args)
 elif args.command == "web-view":
     cmdWebView(args)
-elif args.command == "riot-tv-anchor":
-    cmdRiotTvAnchor(args)
-elif args.command == "riot-tv-layout":
-    cmdRiotTvLayout(args)
+elif args.command == "riot-tv":
+    if args.riotCommand == "anchor":
+        cmdRiotTvAnchor(args)
+    elif args.riotCommand == "layout":
+        cmdRiotTvLayout(args)
+    elif args.riotCommand == "report":
+        cmdRiotTvReport(args)
+    else: raise RuntimeError("Unexpected command", args.command)
 elif args.command in nodeCmdParserTable:
     cmdNodeCmd(args)
 elif args.command in nodeTypeCmdParserTable:
