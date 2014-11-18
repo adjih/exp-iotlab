@@ -528,7 +528,8 @@ class ExpViewController:
             "contiki-border-router": (0,255,0),
             "openwsn": (0,0,127),
             "openwsn-sink": (0,255,255),
-            "hipera": (127,255,127),
+            "opera": (127,255,127),
+            "opera-sink": (255,127,127),
             "riot": (127,127,255)
             }
 

@@ -349,7 +349,9 @@ class SmartRFSnifferSenderObserver:
         data = header + info["packet"] + fcs
 
         self.sd.sendto(data, ("", 5000))
-        print info["clock"], "@%s"%info["snifferId"]
+        #print info["clock"], "@%s"%info["snifferId"]
+        sys.stdout.write(".")
+        sys.stdout.flush()
         #print getHash(info["packet"]), 
         #print asHex(info["packet"])
 

@@ -311,8 +311,12 @@ TypeToFirmware = {
         "../openwsn/openwsn-fw/projects/common/03oos_openwsn_prog",
     "openwsn-sink":
         "../openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog",
-    "hipera": # (an in-house stack)
-        "/home/user/HgRep/hipera/platform/freertos/openlab-hiper/build/bin/test_hipera.elf"
+    "opera":
+        "/home/user/HgRep/exp-iotlab-opera/WSNColor-iotlab/contiki/z1/contiki-opera.iotlab-m3",
+    "opera-sink":
+        "/home/user/HgRep/exp-iotlab-opera/contiki-opera-sink.iotlab-m3"
+#    "hipera": # (an in-house stack)
+#        "/home/user/HgRep/hipera/platform/freertos/openlab-hiper/build/bin/test_hipera.elf"
 }
 
 #--------------------------------------------------

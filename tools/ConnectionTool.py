@@ -556,7 +556,8 @@ def runAsCommand():
             elif args.output == "wireshark+smartrf":
                 observer1 = SnifferHelper.SmartRFSnifferSenderObserver()
                 observer1 = SnifferHelper.UniquePacketObserver(observer1)
-                observer2 = SnifferHelper.SocatObserver()
+                observer2 = SnifferHelper.ZepSenderObserver()
+                observer2 = SnifferHelper.UniquePacketObserver(observer2)
                 outputObserver = SnifferHelper.TeePacketObserver(
                     observer1, observer2)
             elif args.output == "tshark":

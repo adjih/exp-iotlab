@@ -21,6 +21,11 @@ else:
     moteId = args.name
 
 CommandList = [    
+    ("General", None),
+    ("web-view", "./expctl web-view"),
+    ("gui", "./expctl gui &"),
+    ("info", "./expctl info"),
+
     ("Remote Tunnel(s)", None),
     ("forw.ports", "./expctl ssh-forward"),
 
@@ -44,12 +49,12 @@ CommandList = [
      "./mux-send --exclude %s 'init n'" %moteSelect),
     ("send [%s] init-root" %moteId, 
      "./mux-send %s 'init r'"%moteSelect),
-    
-    ("General", None),
-    ("gui", "./expctl gui &"),
-    ("web-view", "./expctl web-view"),
-    ("info", "./expctl info"),
 
+    ("OPERA", None),
+    ("IoT-SmartRF", "./expctl foren6-sniffers --output wireshark+smartrf"),
+    ("PacketDump", '''roxterm --fork -T PacketAnalysis -e bash -c "cd /home/user/HgRep/OCARI-2014/Sniffer-OPERA && python PacketAnalysis.py; sleep 100"'''),
+    ("TkSerial", "cd ../../exp-iotlab-opera/WSNColor-iotlab/contiki/z1 && python TkSerialManage.py &"),
+    
     ("Hacks", None),
     ("shake", """roxterm --fork -T shake -e bash -c 'W=$(wmctrl -l | grep -i foren6 | cut "-d " -f1); echo "moving window $W (foren6) constantly" ; D=0.1 ; U=350; V=351 ; while true ; do wmctrl -i -r $W -e 0,-1,$U,-1,-1 ; wmctrl -i -r $W -e 0,-1,$V,-1,-1 ; sleep $D ; done'"""),
     ("shake2", """roxterm --fork -T shake -e bash -c 'W=$(wmctrl -l | grep -i foren6 | cut "-d " -f1); echo "moving window $W (foren6) constantly" ; D=0.1 ; U=450; V=$(($U+1)) ; while true ; do wmctrl -i -r $W -e 0,-1,$U,-1,-1 ; wmctrl -i -r $W -e 0,-1,$V,-1,-1 ; sleep $D ; done'"""),

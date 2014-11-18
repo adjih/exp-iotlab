@@ -58,7 +58,8 @@ def getProcessManager(exp):
 #---------------------------------------------------------------------------
 
 ForwardedTypeList = ["contiki-border-router", "zep-sniffer", "foren6-sniffer",
-                     "openwsn", "openwsn-sink", "riot", "riot-viz"]
+                     "openwsn", "openwsn-sink", "riot", "riot-viz",
+                     "opera", "opera-sink"]
 
 def cmdSshForward(args):
     iotlab, exp = getHelperAndExp(args)
