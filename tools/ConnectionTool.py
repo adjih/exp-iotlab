@@ -182,9 +182,10 @@ class SocketConnection:
                 self.proxyServer = GenericTcpServer(
                     config, self.scheduler, self.createClient)
 
-        self.scheduler.addFdHandler(Scheduler.FunctionalFdHandler(
-                self.sd, waitInputFunc = lambda: True,
-                handleInputFunc = self.eventInput))
+        self.fdHandler = Scheduler.FunctionalFdHandler(
+            self.sd, waitInputFunc = lambda: True,
+            handleInputFunc = self.eventInput)
+        self.scheduler.addFdHandler(self.fdHandler)
 
     def createClient(self, proxyServer, clientSocket, address):
         return GenericClient(self.scheduler, clientSocket, address,
@@ -195,6 +196,10 @@ class SocketConnection:
         data = self.sd.recv(MaxDataLength)
         if data == "":
             print "eof/error with connection #%d" % self.connId
+            if self.args.with_close:
+                warnings.warn("XXX: should actually close")
+                self.scheduler.removeFdHandler(self.fdHandler)
+                self.sd = None
             return
         observer = self.manager.observer
         if observer != None:
@@ -206,6 +211,9 @@ class SocketConnection:
         self.write(data)
 
     def write(self, data):
+        if self.sd == None:
+            warnings.warn("XXX: should actually handle close")
+            return
         self.sd.send(data)
 
 #---------------------------------------------------------------------------
@@ -500,6 +508,15 @@ class LineConnectionObserver:
     def notifyExit(self):
         pass
 
+
+class LineDisplay:
+    def __init__(self, args):
+        self.args = args
+    def notifyLine(self, socketConnection, line):
+        name = socketConnection.getShortName()
+        reprName = name.ljust(6)
+        sys.stdout.write("%s> %s" % (reprName, line))
+
 #---------------------------------------------------------------------------
 
 def runAsCommand():
@@ -511,6 +528,8 @@ def runAsCommand():
     ncParser.add_argument("--nb-ports", type=int, default=None)
     ncParser.add_argument("--nodes", nargs="*", default=None)
 
+    ncParser.add_argument("--with-close", action="store_true", default=False)
+
     ncParser.add_argument("--input", type=str,
                           choices=["dump", "foren6", "serial-zep", "line"],
                           default="dump")
@@ -518,7 +537,7 @@ def runAsCommand():
     ncParser.add_argument("--output", type=str,
                           choices=["wireshark", "socat", "tshark", "text",
                                    "wireshark+socat", "wireshark+smartrf",
-                                   "riot-tv-reporter"],
+                                   "riot-tv-reporter", "line"],
                           default="wireshark")
 
     ncParser.add_argument("--record-packet", type=str, default=None)
@@ -583,6 +602,8 @@ def runAsCommand():
         elif args.input == "line":
             if args.output == "riot-tv-reporter":
                 parser = RiotTvParser.RiotTvParser(args)
+            elif args.output == "line":
+                parser = LineDisplay(args)
             else: raise ValueError("Unknown output type", args.output)
             observer = LineConnectionObserver(parser)
         else: raise RuntimeError("impossible case", args.input)

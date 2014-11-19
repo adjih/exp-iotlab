@@ -7,7 +7,7 @@ import pprint, os, sys
 import matplotlib.pyplot as plt
 import argparse
 
-sys.path.extend(["..", ".","../.."])
+sys.path.extend(["..", ".","../..", "../../../iot-lab/parts/cli-tools"])
 import IotlabHelper
 from IotlabHelper import extractNodeId, extractNodeName
 
@@ -41,6 +41,9 @@ def getNodeInfo(site, noCache, arch):
 def filterNodeList(site, filterName, nodePosList):
     if filterName == None:
         selected = [nodeId for nodeId,p in  nodePosList]
+        if site == "rocquencourt":
+            selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
+                             if 109 <= nodeId <= 115]) # ZZZ XXX!!!
     elif site == "grenoble" and filterName == "square":
         selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
                          if z < 0 and x < 20])
@@ -78,11 +81,54 @@ def cmdReserve(args):
     print (cmd)
     #pprint.pprint(nodeList)
 
+def cmdList(args):
+    nodePosList = getSelectedNodeList(args)
+    nodeIdList = [ nodeId for nodeId,p in nodePosList ]
+    nodeIdList.sort()
+    print (nodeIdList)
+
+SerialTcpPort = 20000
+BaseTcpPort = 20000
+
+def cmdSshForward(args):
+    baseArch = args.arch.split(":")[0]
+    nodePosList = getSelectedNodeList(args)
+    nodeIdList = [ nodeId for nodeId,p in nodePosList ]
+    nodeIdList.sort()
+    redirectList = []
+    for nodeId in nodeIdList:
+        node = "node-%s-%s" % (baseArch, nodeId)
+        redirectList.extend(
+            ["-L %s:%s:%s" % (BaseTcpPort+nodeId, node, SerialTcpPort)])
+    sshRedirectPortStr = " ".join(redirectList)
+    cmd = "echo FORWARDING PORTS \(through ssh, for use by other programs\)...; sleep 600000"
+    sshSnifferTunnelCommand = "ssh -T %s %s '%s'" % (
+        args.site+".iot-lab.info", sshRedirectPortStr, cmd)
+    processManager = IotlabHelper.ProcessManager()
+    processManager.startSubProcessInTerm("id-based ssh tunnels to IoT-LAB", 
+                                         sshSnifferTunnelCommand)
+
+def cmdMux(args):
+    baseArch = args.arch.split(":")[0]
+    nodePosList = getSelectedNodeList(args)
+    nodeIdList = [ nodeId for nodeId,p in nodePosList ]
+    nodeIdList.sort()
+    nodeInfoList = ["localhost:%s:%s-%s" 
+                    % (BaseTcpPort+nodeId, baseArch, nodeId)
+                    for nodeId in nodeIdList]
+    muxCommand = "cd ../.. && ./ConnectionTool.py connect --mux --mux-port 19999 --input line --output line --with-close --nodes " + " ".join(nodeInfoList)
+    
+    #os.system(muxCommand)
+    processManager = IotlabHelper.ProcessManager()
+    processManager.startSubProcessInTerm(
+        "mux tunnels to IoT-LAB", muxCommand)
+
 #---------------------------------------------------------------------------
 
 def runAsCommand():
     DefaultSiteName = "grenoble"
     DefaultArch = "m3:at86rf231"
+    DefaultMuxPort = 19999
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--site", type=str, default=DefaultSiteName)
@@ -93,6 +139,10 @@ def runAsCommand():
     subparsers = parser.add_subparsers(dest="command")
     plotParser = subparsers.add_parser("plot")
     reserveParser = subparsers.add_parser("reserve")
+    listParser = subparsers.add_parser("list")
+    sshForwardParser = subparsers.add_parser("ssh-forward")
+    muxParser = subparsers.add_parser("mux")
+    #muxParser.add_argument("--mux-port", type=int, DefaultMuxPort)
     #showParser = subparsers.add_parser("show")
 
     args = parser.parse_args()
@@ -100,6 +150,12 @@ def runAsCommand():
         cmdPlot(args)    
     elif args.command == "show":
         cmdShow(args)
+    elif args.command == "list":
+        cmdList(args)
+    elif args.command == "ssh-forward":
+        cmdSshForward(args)
+    elif args.command == "mux":
+        cmdMux(args)
     elif args.command == "reserve":
         cmdReserve(args)
     else: raise RuntimeError("Unexpected command", args.command)
