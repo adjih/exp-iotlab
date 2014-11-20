@@ -85,7 +85,9 @@ URL_TUNSLIP6=https://github.com/iot-lab/contiki/raw/master/tools/tunslip6.c
 
 ifeq (${USE_DEMO_REPO},yes)
 
+GIT_IOTLAB=https://github.com/adjih/iot-lab -b demo
 GIT_IOTLAB_CONTIKI=https://github.com/adjih/contiki -b demo
+GIT_IOTLAB_CLITOOLS=https://github.com/adjih/cli-tools.git -b demo
 
 endif
 

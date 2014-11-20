@@ -394,8 +394,12 @@ riotTvReportParser = riotTvSubParsers.add_parser("report")
 args = parser.parse_args()
 
 if args.exp_id == None:
-    expId = getLastExpId()
-    print "(no experiment id specified, using last one: exp %s)" % expId
+    if os.path.exists(IotlabHelper.LastExpSymLink):
+        expId = getLastExpId()
+        print "(no experiment id specified, using last one: exp %s)" % expId
+    else:
+        expId = None
+        print "(no running experiment)"
     args.exp_id = expId
 
 if args.command == "flash":
