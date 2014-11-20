@@ -43,7 +43,9 @@ def filterNodeList(site, filterName, nodePosList):
         selected = [nodeId for nodeId,p in  nodePosList]
         if site == "rocquencourt":
             selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
-                             if 109 <= nodeId <= 115]) # ZZZ XXX!!!
+                             #if 61 <= nodeId <= 128]) # ZZZ XXX!!!
+                             #if 61 <= nodeId <= 100]) # ZZZ XXX!!!
+                             if (nodeId <= 100) or (129 <= nodeId <= 158)])
     elif site == "grenoble" and filterName == "square":
         selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
                          if z < 0 and x < 20])
