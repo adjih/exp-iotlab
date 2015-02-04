@@ -724,6 +724,7 @@ class ProcessManager:
                        "-T", tabTitle,
                        "-e", "bash -c '%s'" % command]
         newProcess = subprocess.Popen(args=argList, shell=False)
+        print newProcess
         self.processList.append(newProcess)
 
     def addSubProcess(self, process):

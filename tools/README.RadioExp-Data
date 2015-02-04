@@ -193,3 +193,20 @@ for i in exp-* ; do \
 done  > summary.log 2>&1
 
 ---------------------------------------------------------------------------
+
+cd ~/ep/tools/misc/demo
+./democtl --no-cache --site grenoble plot
+./democtl --site lille reserve
+
+---------------------------------------------------------------------------
+First exp:
+~~~~~~~~~~
+
+cd ~/ep/tools/misc/demo
+./democtl --no-cache --site lille plot
+`./democtl --site lille reserve` -d 120 -n "test-freq-map"
+
+cd ~/e/tools
+python RunMultiExp.py --flash conf-radio-freq.pyconf
+
+---------------------------------------------------------------------------
