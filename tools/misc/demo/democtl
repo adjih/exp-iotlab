@@ -1,11 +1,15 @@
 #! /usr/bin/python
 #---------------------------------------------------------------------------
-# Cedric Adjih - Inria - 2014
+# Cedric Adjih - Inria - 2014-2015
 #---------------------------------------------------------------------------
 
-import pprint, os, sys
+import pprint, os, sys, warnings
 import matplotlib.pyplot as plt
 import argparse
+import numpy as np
+
+try: from mpl_toolkits.mplot3d import Axes3D
+except: warnings.warn("cannot import matplotlib Axes3D, no 'plot3d'")
 
 sys.path.extend(["..", ".","../..", "../../../iot-lab/parts/cli-tools"])
 import IotlabHelper
@@ -42,20 +46,29 @@ def filterNodeList(site, filterName, nodePosList):
     if filterName == None:
         selected = [nodeId for nodeId,p in  nodePosList]
         if site == "rocquencourt":
-            selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
+            selected = set([ nodeId for nodeId,(x,y,z) in nodePosList ])
                              #if 61 <= nodeId <= 128]) # ZZZ XXX!!!
                              #if 61 <= nodeId <= 100]) # ZZZ XXX!!!
-                             if (nodeId <= 100) or (129 <= nodeId <= 158)])
+                             #if (nodeId <= 100) or (129 <= nodeId <= 158)])
     elif site == "grenoble" and filterName == "square":
-        selected = set([ nodeId for nodeId,(x,y,z) in nodePosList 
+        selected = set([ nodeId for nodeId,(x,y,z) in nodePosList
                          if z < 0 and x < 20])
     else: raise RuntimeError("Unknown node filtering", (site, filterName))
     result = [ (nodeId,p) for nodeId,p in nodePosList if nodeId in selected ]
     return result
 
+def getExcludeList(args):
+    excludeStr = args.exclude.replace(",", " ").replace(";", " ")
+    excludeStrList = excludeStr.split(" ")
+    result = [ int(x) for x in excludeStrList if x != "" ]
+    return result
+
 def getSelectedNodeList(args):
     nodePosList = getNodeInfo(args.site, args.no_cache, args.arch)
-    finalNodePosList = filterNodeList(args.site, args.filter, nodePosList)
+    tmpNodePosList = filterNodeList(args.site, args.filter, nodePosList)
+    excludedNodeSet = set(getExcludeList(args))
+    finalNodePosList = [ info for info in tmpNodePosList
+                        if info[0] not in excludedNodeSet ]
     return finalNodePosList
 
 #---------------------------------------------------------------------------
@@ -64,8 +77,33 @@ def cmdPlot(args):
     nodePosList = getSelectedNodeList(args)
     xList = [ x for nodeId,(x,y,z) in nodePosList]
     yList = [ y for nodeId,(x,y,z) in nodePosList]
-    zList = [ y for nodeId,(x,y,z) in nodePosList]
+    zList = [ z for nodeId,(x,y,z) in nodePosList]
     plt.plot(xList, yList, "*")
+    plt.show()
+
+#..................................................
+# from: http://stackoverflow.com/questions/8130823/set-matplotlib-3d-plot-aspect-ratio
+
+def axisEqual3D(ax):
+    extents = np.array([getattr(ax, 'get_{}lim'.format(dim))() for dim in 'xyz'])
+    sz = extents[:,1] - extents[:,0]
+    centers = np.mean(extents, axis=1)
+    maxsize = max(abs(sz))
+    r = maxsize/2
+    for ctr, dim in zip(centers, 'xyz'):
+        getattr(ax, 'set_{}lim'.format(dim))(ctr - r, ctr + r)
+
+#..................................................
+
+def cmdPlot3d(args):
+    nodePosList = getSelectedNodeList(args)
+    xList = [ x for nodeId,(x,y,z) in nodePosList]
+    yList = [ y for nodeId,(x,y,z) in nodePosList]
+    zList = [ z for nodeId,(x,y,z) in nodePosList]
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    ax.scatter(xList, yList, zList, marker="o")
+    axisEqual3D(ax)
     plt.show()
 
 def cmdReserve(args):
@@ -135,11 +173,13 @@ def runAsCommand():
     parser = argparse.ArgumentParser()
     parser.add_argument("--site", type=str, default=DefaultSiteName)
     parser.add_argument("--filter", type=str, default=None)
+    parser.add_argument("--exclude", type=str, default="")
     parser.add_argument("--no-cache", action="store_true", default=False)
     parser.add_argument("--arch", type=str, default=DefaultArch)
 
     subparsers = parser.add_subparsers(dest="command")
     plotParser = subparsers.add_parser("plot")
+    plot3dParser = subparsers.add_parser("plot3d")
     reserveParser = subparsers.add_parser("reserve")
     listParser = subparsers.add_parser("list")
     sshForwardParser = subparsers.add_parser("ssh-forward")
@@ -150,6 +190,8 @@ def runAsCommand():
     args = parser.parse_args()
     if args.command == "plot":
         cmdPlot(args)    
+    elif args.command == "plot3d":
+        cmdPlot3d(args)    
     elif args.command == "show":
         cmdShow(args)
     elif args.command == "list":
