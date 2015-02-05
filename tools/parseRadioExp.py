@@ -4,7 +4,7 @@
 
 from __future__ import print_function, division, unicode_literals
 
-import argparse, pprint, math
+import argparse, pprint, math, warnings
 
 try: from cStringIO import StringIO
 except: from io import BytesIO as StringIO # in this case: assume python 3
@@ -493,21 +493,38 @@ class ExperimentParser(FileManager):
 
         # parse sender info
 
+
         rawSenderInfo = info["cmdXmit"][1][idx]
+
         if len(rawSenderInfo) != 2:
+            #pprint.pprint(rawSenderInfo)
+            #raise ValueError("too much sender info in cmdXmit", rawSenderInfo)
+            warnings.warn("XXX: filtered out CCA/ED errors")
+            rawSenderInfo = [
+                x for x in rawSenderInfo
+                if x[1].find("RF delay expired") < 0 ]
+            #info["cmdXmit"][1][idx] = rawSenderInfo # XXX:hack back
+
+        if len(rawSenderInfo) != 2:
+            pprint.pprint(rawSenderInfo)
             raise ValueError("too much sender info in cmdXmit", rawSenderInfo)
+
         senderInfo = eval(rawSenderInfo[0][1])
         if senderInfo["nbPacket"] != expInfo["nbPacket"]:
             raise ValueError("inconsistent nb sent packets",
                              (senderInfo["nbPacket"], expInfo["nbPacket"]))
         if senderInfo["nbError"] != 0: # check no error found during exp. 
-            raise ValueError("transmission errors found", senderInfo["nbError"])
+            warnings.warn("XXX: filtered out transmission errors")
+            print("\ntransmission errors found: %s" %senderInfo["nbError"])
+            #raise ValueError("transmission errors found",senderInfo["nbError"])
 
         edList = []
         for seqNum,(t1,t2,ed,success) in enumerate(senderInfo["send"]):
             if success != 1:
-                raise ValueError("transmission failed", 
-                                 (senderInfo["send"],seqNum))
+                warnings.warn("XXX: ignoring transmission errors")
+                print ("transmission failure: %s %s %s" % (t1, t2, ed))
+                #raise ValueError("transmission failed",
+                #                 (senderInfo["send"],seqNum))
             edList.append(ed)
 
         def removeInvalidHandleIrq(clockAndMsgList, errorMsgTemplate):
