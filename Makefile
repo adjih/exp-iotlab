@@ -296,23 +296,23 @@ ${OPENWSN_SIM_OBJ}: ; make build-openwsn-sim
 
 
 #firmware/openos/projects/common/oos_openwsn.so
-ensure-openwsn-m3: openwsn/openwsn-fw/projects/common/03oos_openwsn_prog
+ensure-openwsn-m3: openwsn/openwsn-fw/projects/common/${OPENWSN_PROG}
 
-ensure-openwsn-sink-m3: openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog
+ensure-openwsn-sink-m3: openwsn/openwsn-fw-sink/projects/common/${OPENWSN_PROG}
 
-openwsn/openwsn-fw/projects/common/03oos_openwsn_prog:
+openwsn/openwsn-fw/projects/common/${OPENWSN_PROG}:
 	make build-openwsn-m3
 
-openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog:
+openwsn/openwsn-fw-sink/projects/common/${OPENWSN_PROG}:
 	make build-openwsn-sink-m3
 
 build-openwsn-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw \
-        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn
+        && scons board=iot-lab_M3 toolchain=armgcc ${OPENWSN}
 
 build-openwsn-sink-m3: ensure-openwsn-build-deps
 	${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw-sink \
-        && scons board=iot-lab_M3 toolchain=armgcc oos_openwsn dagroot=1
+        && scons board=iot-lab_M3 toolchain=armgcc ${OPENWSN} dagroot=1
 
 build-openwsn-a8-m3: ensure-openwsn-build-deps # not working
 
@@ -321,6 +321,8 @@ run-openwsn-sim: ensure-openwsn-sim ensure-openwsn-build-deps
 
 run-openwsn-web: ensure-openwsn-build-deps
 	cd openwsn/openwsn-sw/software/openvisualizer && sudo scons runweb
+	#cd openwsn/openwsn-sw/software/openvisualizer/bin/openVisualizerApp \
+	#&& sudo python openVisualizerWeb.py --iotlabmotes m3-6,m3-8,m3-60,m3-62,m3-64
 
 
 #===========================================================================
@@ -600,7 +602,7 @@ build-sniffer-zep-a8-m3:
 FLASHCMD=${USE_OPENWSN_DEFS} && cd openwsn/openwsn-fw/firmware/openos/bsp/boards/iot-lab_M3/tools && ./flash.sh
 
 direct-flash-openwsn-m3: ensure-openwsn-m3
-	${FLASHCMD} ../../../../../../firmware/openos/projects/common/03oos_openwsn_prog
+	${FLASHCMD} ../../../../../../firmware/openos/projects/common/${OPENWSN_PROG}
 
 IOTLAB_EX1=iot-lab/parts/openlab/build.m3/bin/example_soft_timer_delay.elf
 

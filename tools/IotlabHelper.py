@@ -286,6 +286,7 @@ class IotlabExp:
 
 #--------------------------------------------------
 # XXX: make it configurable
+DefaultFirmeware = "03oos_openwsn_prog"
 
 TypeToFirmware = {
     "foren6-sniffer":
@@ -308,9 +309,9 @@ TypeToFirmware = {
         "../riot/RIOT-viz/examples/rpl_udp/bin/iot-lab_M3/rpl_udp.elf",
         #"../riot/RIOT/examples/default/bin/iot-lab_M3/default.elf",
     "openwsn":
-        "../openwsn/openwsn-fw/projects/common/03oos_openwsn_prog",
+        "../openwsn/openwsn-fw/projects/common/"+DefaultFirmeware,
     "openwsn-sink":
-        "../openwsn/openwsn-fw-sink/projects/common/03oos_openwsn_prog",
+        "../openwsn/openwsn-fw-sink/projects/common/"+DefaultFirmeware,
     "opera":
         "/home/user/HgRep/exp-iotlab-opera/WSNColor-iotlab/contiki/z1/contiki-opera.iotlab-m3",
     "opera-sink":
@@ -748,6 +749,7 @@ def parserAddTypicalArgs(parser, defaultName):
     parser.add_argument("--nb-nodes", dest="nbNodes", 
                         type=int, default=DefaultNbNode)
     parser.add_argument("--duration", type=int, default=DefaultDuration)
+    parser.add_argument("--firm", dest="firmeware",type=str, default=DefaultFirmeware )
     parser.add_argument("--dev", type=str, default=None)
     parser.add_argument("--nb-foren6-sniffers", dest="nbForen6Sniffers", 
                         type=int, default=0)
@@ -769,6 +771,9 @@ def ensureExperimentFromArgs(args):
         exp = expList[0]
 
     print ("  experiment id=%s" % (exp.expId))
+    global TypeToFirmware
+    TypeToFirmware["openwsn"] = "../openwsn/openwsn-fw/projects/common/"+args.firmeware
+    TypeToFirmware["openwsn-sink"] = "../openwsn/openwsn-fw-sink/projects/common/"+args.firmeware
     exp.waitUntilRunning(verbose=True)
     return iotlab, exp
 
