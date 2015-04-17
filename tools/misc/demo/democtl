@@ -53,6 +53,9 @@ def filterNodeList(site, filterName, nodePosList):
     elif site == "grenoble" and filterName == "square":
         selected = set([ nodeId for nodeId,(x,y,z) in nodePosList
                          if z < 0 and x < 20])
+    elif site == "grenoble" and filterName == "modulo":
+        selected = set([ nodeId for nodeId,(x,y,z) in nodePosList
+                         if nodeId % 3 == 0])
     else: raise RuntimeError("Unknown node filtering", (site, filterName))
     result = [ (nodeId,p) for nodeId,p in nodePosList if nodeId in selected ]
     return result
