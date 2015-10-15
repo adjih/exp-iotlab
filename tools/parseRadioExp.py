@@ -1015,7 +1015,8 @@ class ExperimentAnalysis(FileManager):
             data = data.sum(axis=1) / self.nbPacket
 
         elif mode == "ed":
-            data = self.stat["ed"][powerIdx, channelIdx].mean(axis=1)
+            #data = self.stat["ed"][powerIdx, channelIdx].mean(axis=1)
+            data = self.stat["ed"][powerIdx, channelIdx].max(axis=1)
 
         elif mode in ErrorNameList:
             data = self.error[mode][powerIdx, channelIdx].sum(axis=0)
@@ -1042,6 +1043,7 @@ class ExperimentAnalysis(FileManager):
         statEd = self.error["magic"]
         statEd = self.stat["recv"][:,:,:,:,0]
         avgEd = (statEd.mean(axis=axis))
+        #avgEd = (statEd.max(axis=axis))
 
         idx = 22-11
         idx = 11-11

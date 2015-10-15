@@ -485,8 +485,8 @@ class IotlabHelper:
 
     def getExpList(self, stateList = ["Running"]):        
         expInfoList = self.getExpInfoList(stateList)
-        return [self._makeExp(expInfo["id"]) for expInfo in expInfoList
-                if expInfo["id"] == 14629 ] # XXX!!!!
+        return [self._makeExp(expInfo["id"]) for expInfo in expInfoList]
+        #if expInfo["id"] == 14629 ] # XXX!!!!
 
     def startExp(self, name, duration, site, nbNode, archi="m3:at86rf231",
                  profileName=None):
