@@ -2,6 +2,8 @@
 This file documents the processing of results of experiments
 (including existing datasets)
 
+ <img src="doc/RadioExpTool.png" align="right" alt="RadioExpTool" width="30%"/>
+
 ---------------------------------------------------------------------------
 
 TL;DR - Quick Vizualisation of Exp. Results
@@ -58,7 +60,11 @@ Interpret the results
 See top of "ipython notebook radio-exp-analysis.ipynb" or of
 radio-exp-analysis.pdf, to have information about how data was generated.
 
-Go in Parsed/
+Older experiments are availabled
+from [Parsed.zip](http://hipercom.inria.fr/IoT-LAB-dataset/Parsed.zip).
+
+If you are curious, after downloading this file and extracting
+the file, go in Parsed/
 * look at the summary of the various experiments in summary.log
   * some of the experiments are older (the ones with slightly different
     format or firmware were thrown away)
