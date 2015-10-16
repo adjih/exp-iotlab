@@ -1,7 +1,22 @@
 # exp-iotlab
+
 ---------------------------------------------------------------------------
 
-# Quick Starting IoT-LAB experiments
+This repository contains scripts for automated download/compilation/experiment with IoT-LAB.
+
+It was created mid-2014 mostly
+for [FIT IoT-LAB demo at BnB](https://www.ietf.org/meeting/90/ietf-90-bits-n-bites.html)
+and [LLN plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90_toronto_plugfest) at IETF 90, and is rather obsolete:
+although most is still essentially functional when using older versions of software, alternatives exist on IoT-LAB site.
+
+It still contains:
+  * Software+doc for automated launch of radio map experiments
+    and analysis is in the 
+    [branch radio-exp](https://github.com/adjih/exp-iotlab/tree/radio-exp).
+
+---------------------------------------------------------------------------
+
+## Quick Starting IoT-LAB experiments
 
 Utilities and scripts for automating experiments with IoT-LAB ( https://www.iot-lab.info ) using different systems and experiments.
 
@@ -28,8 +43,6 @@ The steps:
       * [HOWTO use Foren6 to diagnose in realtime your 6LoWPAN experiment](https://github.com/iot-lab/iot-lab/wiki/HOWTO-use-Foren6-to-diagnose-in-realtime-your-6LoWPAN-experiment)
     * This was demonstrated at 
 IETF 90 [LLN Plugfest](https://bitbucket.org/6tisch/meetings/wiki/140720a_ietf90_toronto_plugfest) and [Bits-N-Bites](http://www.ietf.org/meeting/90/ietf-90-bits-n-bites.html) at Toronto.
-
-
 
 ---------------------------------------------------------------------------
 
