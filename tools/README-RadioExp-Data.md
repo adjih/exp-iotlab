@@ -2,7 +2,7 @@
 This file documents the processing of results of experiments
 (including existing datasets)
 
- <img src="doc/RadioExpTool.png" align="right" alt="RadioExpTool" width="30%"/>
+ <img src="/doc/RadioExpTool.png" align="right" alt="RadioExpTool" width="30%"/>
 
 ---------------------------------------------------------------------------
 
