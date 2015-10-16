@@ -30,9 +30,12 @@ WITH_UBUNTU_APTGET_INSTALL = yes
 
 GIT_IOTLAB=https://github.com/iot-lab/iot-lab.git -b master
 GIT_IOTLAB_CLITOOLS=https://github.com/iot-lab/cli-tools.git
-GIT_IOTLAB_OPENLAB=https://github.com/iot-lab/openlab.git
+#GIT_IOTLAB_OPENLAB=https://github.com/iot-lab/openlab.git
 GIT_IOTLAB_CONTIKI=https://github.com/iot-lab/contiki.git
 GIT_IOTLAB_WSN430=https://github.com/iot-lab/wsn430.git
+
+# Use this fork instead:
+GIT_IOTLAB_OPENLAB=https://github.com/adjih/exp-iotlab.git -b radio-exp
 
 #--------------------------------------------------
 # Repositories from Riot-OS
