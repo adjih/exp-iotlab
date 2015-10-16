@@ -2,6 +2,9 @@
 
 ---------------------------------------------------------------------------
 
+
+ <img src="doc/RadioExpTool.png" align="right" alt="RadioExpTool"  width="30%"/>
+
 This is the branch of exp-iotlab including software that can be used
 to establish a radio map of IoT-LAB.
 
