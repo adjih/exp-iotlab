@@ -20,7 +20,7 @@ to establish a radio map of IoT-LAB.
 * One analysis of the dataset `2015-02-04-23h02m50` was published in:
   * T. Watteyne, C. Adjih and X. Vilajosana,
   *"Lessons Learned from Large-scale Dense IEEE802.15.4 Connectivity Traces"*,
-  CASE 2015
+  IEEE CASE 2015
 
 ![Screenshot](doc/link-channel-3d-col0.png)
 

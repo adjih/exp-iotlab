@@ -1,0 +1,8 @@
+
+generate-figs:
+	cd analysis && python analyzeRadioExp.py all # but something messes fonts
+	cd analysis && python analyzeRadioExp.py chart-freq-link # redo (font size)
+	cd analysis && python analyzeRadioExp.py link-type-dist-zoom # -ditto-
+	cd analysis && python analyzeRadioExp.py connectivity-prob # -again-
+	cd analysis && python analyzeRadioExp.py coherence-selected # -
+	cd analysis && python analyzeRadioExp.py rssi-dist # -

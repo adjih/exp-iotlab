@@ -222,7 +222,7 @@ Content of http://hipercom.inria.fr/IoT-LAB-dataset/
 
 * [Analysis-IoT-LAB-Trace.pdf](http://hipercom.inria.fr/IoT-LAB-dataset/Analysis-IoT-LAB-Trace.pdf) -
    slides/presentation of the article analysing the dataset ``exp-2015-02-04-23h02m50.zip``:
-   *"Lessons Learned from Large-scale Dense IEEE802.15.4 Connectivity Traces"*, Thomas Watteyne, Cedric Adjih, Xavier Vilajosana. IEEE International Conference on Automation Science and Engineering (IEEE CASE), Industrial Wireless Networking Session. Gothenburg, Sweden, 24-28 August 2015.
+   *"Lessons Learned from Large-scale Dense IEEE802.15.4 Connectivity Traces"*, Thomas Watteyne, Cedric Adjih, Xavier Vilajosana, IEEE CASE 2015, Gothenburg, Sweden, 24-28 August 2015.
 
 * [obsolete-radio-exp-analysis.pdf](http://hipercom.inria.fr/IoT-LAB-dataset/obsolete-radio-exp-analysis.pdf):
    * a old version of some analysis 
@@ -238,3 +238,25 @@ Content of http://hipercom.inria.fr/IoT-LAB-dataset/
    run "ipython notebook obsolete-radio-exp-analysis.ipynb"
 
 ---------------------------------------------------------------------------
+
+Reproduce published figures 
+===========================
+
+To reproduce figures from the article
+"Lessons Learned from Large-scale Dense IEEE802.15.4 Connectivity Traces":
+
+* Extract ``exp-2015-02-04-23h02m50.zip`` mentionned previous section
+  in directory ``tools``
+
+* In directory ``tools``, start ``make -f Makefile.figures``
+
+* Wait a little bit, and have fun with the newly generated figures in directory ``analysis``
+
+---------------------------------------------------------------------------
+
+
+
+
+
+
+
