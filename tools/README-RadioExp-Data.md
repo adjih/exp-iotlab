@@ -186,6 +186,12 @@ done  > summary.log 2>&1
 
 ---------------------------------------------------------------------------
 
+The following assumes "exp-iot-lab" master branch is in '~/ep'
+and the 'branch-exp' is in '~/e'
+
+----
+
+Reservation:
 ```
 cd ~/ep/tools/misc/demo
 ./democtl --no-cache --site grenoble plot
@@ -199,7 +205,7 @@ First exp:
 ```
 cd ~/ep/tools/misc/demo
 ./democtl --no-cache --site lille plot
-`./democtl --site lille reserve` -d 120 -n "test-freq-map"
+`./democtl --site lille reserve` -d 120 -n "testFreqMap"
 
 cd ~/e/tools
 python RunMultiExp.py --flash conf-radio-freq.pyconf
