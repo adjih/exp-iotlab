@@ -22,7 +22,7 @@ Configuration changes:
 * Radio on SPI2 instead of SPI1
 * SPI related pins moved GPIO_B:  PB.13 as SCLK pin ,PB.14 as MISO pin, PB.15 as MOSI pin
 * Gyroscope LSM303DLHC: GPIO PC9 instead of GPIO PC0 (thus uses ```NVIC_IRQ_LINE_EXTI9_5``` instead of ```NVIC_IRQ_LINE_EXTI0```)
-* Accelerometer/Magnetometer LSM303DLHC (order of lines is also changed in ```accmag_setup``` if you read the diff): 
+* Accelerometer/Magnetometer L3G4200D (order of lines is also changed in ```accmag_setup``` if you read the diff): 
   - Mag Drdy (MAG1) on GPIO PA11 instead of PB2
   - Acc Int2 on GPIO PB2 instead of PB1
   - interrupts through the EXTI (External interrupt/event controller) are modified accordingly
